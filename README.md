@@ -1,6 +1,6 @@
 #### Noise Based Biometric Authentication
 
-* This repositories contains all the relavent codesfor Biometric Authentication using noise. 
+* This repositories contains all the relavent codes for Biometric Authentication using noise. 
 
 The following Modalities of Authentication are present here: 
 * Unimodel
