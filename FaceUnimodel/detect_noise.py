@@ -1,6 +1,12 @@
 import cv2
 import numpy as np
 import imutils
+import sys
+import mediapipe as mp
+
+
+if len(sys.argv) > 1:
+    path = sys.argv[1]
 
 # detecting ears
 # basic tree based volia-jones, doesn't seem to work for non-frontal images
@@ -39,8 +45,10 @@ def detect_haarcascade(path):
     for (x,y,w,h) in right_eye:
         cv2.rectangle(img, (x,y), (x+w,y+h), (255,0,0), 3)
 
-    cv2.imshow('Detector', img)
-    cv2.waitKey()
-    cv2.destroyAllWindows()
+    cv2.imwrite('../dumps/example_har.png', img)
 
 # media pipe with face landmarks
+
+if __name__ == "__main__":
+    if path:
+        detect_haarcascade(path)
