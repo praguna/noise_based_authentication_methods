@@ -4,7 +4,9 @@ import imutils
 import sys
 import mediapipe as mp
 
+mp_face_mesh = mp.solutions.face_mesh
 
+path = None
 if len(sys.argv) > 1:
     path = sys.argv[1]
 
@@ -48,7 +50,24 @@ def detect_haarcascade(path):
     cv2.imwrite('../dumps/example_har.png', img)
 
 # media pipe with face landmarks
+def detect_mediapipe(path):
+    # Left eye indices list
+    LEFT_EYE =[ 362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385,384, 398 ]
+    # Right eye indices list
+    RIGHT_EYE=[ 33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161 , 246 ]
+    with mp_face_mesh.FaceMesh(max_num_faces=1,refine_landmarks=True,min_detection_confidence=0.6,
+                            min_tracking_confidence=0.6) as face_mesh:
+            img = cv2.imread(path)
+            rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            results = face_mesh.process(rgb)
+            img_h, img_w = img.shape[:2]
+            mesh_points=np.array([np.multiply([p.x, p.y], [img_w, img_h]).astype(int) for p in results.multi_face_landmarks[0].landmark])
+            cv2.polylines(img, [mesh_points[LEFT_EYE]], True, (0,255,0), 1, cv2.LINE_AA)
+            cv2.polylines(img, [mesh_points[RIGHT_EYE]], True, (0,255,0), 1, cv2.LINE_AA)
+            cv2.imwrite('../dumps/example_mediapipe.png', img)
+            
 
 if __name__ == "__main__":
     if path:
-        detect_haarcascade(path)
+        # detect_haarcascade(path)
+        detect_mediapipe(path)
