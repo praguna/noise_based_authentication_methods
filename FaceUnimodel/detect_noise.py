@@ -3,6 +3,7 @@ import numpy as np
 import imutils
 
 # detecting ears
+# basic tree based volia-jones, doesn't seem to work for non-frontal images
 def detect_haarcascade(path):
     left_ear_cascade = cv2.CascadeClassifier('./cascades/haarcascade_mcs_leftear.xml')
     right_ear_cascade = cv2.CascadeClassifier('./cascades/haarcascade_mcs_rightear.xml')
@@ -42,4 +43,4 @@ def detect_haarcascade(path):
     cv2.waitKey()
     cv2.destroyAllWindows()
 
-detect_haarcascade('/Users/pragunamanvi/Downloads/00002.png')
+# media pipe with face landmarks
