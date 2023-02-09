@@ -111,8 +111,14 @@ def download_github_model(model_url, model_path):
 def extract_masked_regions(image, mask):
     masked_image = np.copy(image)
     masked_image[mask > 0] = image[mask > 0]
-    masked_image[mask <= 0] = 255
+    masked_image[mask <= 0] = 0
     return masked_image
+
+def extract_masked_regions_overlay(image, mask):
+    masked_image = np.copy(image)
+    masked_image[mask > 0] = 255
+    return masked_image
+
 
 
 def find_contours_rectangle(mask):
@@ -142,10 +148,10 @@ def find_contours_rectangle(mask):
 if __name__ == '__main__':
 
     image = cv2.imread(sys.argv[1])
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-    hair_segmentation = HairSegmentation(image.shape[1], image.shape[0])
+    hair_segmentation = HairSegmentation(rgb_image.shape[1], rgb_image.shape[0])
 
-    hair_mask = hair_segmentation(image)
+    hair_mask = hair_segmentation(rgb_image)
     cv2.imwrite('../dumps/mediapipe_hairmask.png', extract_masked_regions(image, hair_mask))
 
