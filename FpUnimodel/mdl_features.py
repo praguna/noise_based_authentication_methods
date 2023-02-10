@@ -22,12 +22,12 @@ def init_fp_session():
         tf.import_graph_def(graph_def, name="")
         
     sess = tf.Session(graph=graph)
-    # Get a reference to the input tensor
-    inputs = graph.get_tensor_by_name("inputs:0")
-    phase = graph.get_tensor_by_name("phase_train:0")
-    keepProb = graph.get_tensor_by_name("keep_prob:0")
 
-    def extract_embeddings(I):    
+    def extract_embeddings(I):  
+        # Get a reference to the input tensor
+        inputs = graph.get_tensor_by_name("inputs:0")
+        phase = graph.get_tensor_by_name("phase_train:0")
+        keepProb = graph.get_tensor_by_name("keep_prob:0")  
         # Get a reference to the output tensor
         output_tensor = graph.get_tensor_by_name("outputs:0")
         moutputs = graph.get_tensor_by_name("MinutiaeFeatures:0")
