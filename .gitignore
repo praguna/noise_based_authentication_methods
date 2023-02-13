@@ -4,3 +4,4 @@ lib/*
 *.cfg
 dumps
 **/__pycache__/**
+**/pretrained_models/**
