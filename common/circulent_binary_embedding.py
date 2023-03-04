@@ -29,13 +29,14 @@ if __name__ == "__main__":
     for i in range(100):
         A = np.random.randn(512)
         A /= np.linalg.norm(A)
-        B = one_parameter_defense(A)
+        B1 = one_parameter_defense(A)
+        B2 = one_parameter_defense(A)
         # print(np.random.randn(512, 3000).shape)
-        v1 = cbe_prediction(model, A)
-        v2 = cbe_prediction(model, B)
-        hd = 1 - np.sum(np.logical_xor(v1, v2)) / A.shape[0]
-        V.append(abs(A @ B - hd))
+        v1 = cbe_prediction(model, B1)
+        v2 = cbe_prediction(model, B2)
+        hd = 1 - np.sum(np.logical_xor(v1, v2)) / B1.shape[0]
+        V.append(abs(B1 @ B2 - hd))
     print(np.average(V) * 100, np.max(V) * 100, np.min(V) * 100)
     import matplotlib.pyplot as plt
-    plt.hist(np.round(V, 3))
+    plt.hist(V, 3)
     plt.show()
