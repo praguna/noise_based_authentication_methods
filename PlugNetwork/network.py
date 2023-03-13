@@ -115,6 +115,10 @@ if __name__ == "__main__":
     parser.add_argument('--epoch', default=1, type=int,
                     help='epoch')
     args = parser.parse_args()
+    import time
     nvgNetFace = NvgnetFace(args=args).to(device)
-    in0 = torch.randn([2, 3, 256, 256]).to(device)
-    assert nvgNetFace(in0).shape == torch.Size([2, 128])
+    in0 = torch.randn([64, 3, 160, 160]).to(device)
+    s = time.time()
+    assert nvgNetFace(in0).shape == torch.Size([64, 128])
+    e = time.time()
+    print(e - s)
