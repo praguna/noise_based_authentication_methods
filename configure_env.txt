@@ -8,3 +8,4 @@ pip install opencv-python onnx onnxruntime tensorflow==1.15 scipy pillow utils p
 mkdir dumps
 # move fp model
 mv /content/drive/MyDrive/Inception_mdl/mdl.pb  dumps/
+pip install facenet_pytorch --quiet
