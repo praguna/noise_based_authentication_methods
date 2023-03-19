@@ -122,3 +122,16 @@ if __name__ == "__main__":
     assert nvgNetFace(in0).shape == torch.Size([64, 128])
     e = time.time()
     print(e - s)
+    ## private validation and initialization
+    # from opacus.validators import ModuleValidator
+    # errors = ModuleValidator.validate(nvgNetFace, strict=False)
+    # import sys
+    # sys.setrecursionlimit(10000)
+    # nvgNetFace.backend_layer = ModuleValidator.fix(nvgNetFace.backend_layer)
+    # ModuleValidator.validate(nvgNetFace, strict=False)
+    # print(len(errors))
+    # nvgNetFace = nvgNetFace.to(device)
+    # s = time.time()
+    # assert nvgNetFace(in0).shape == torch.Size([64, 128])
+    # e = time.time()
+    # print(e - s)
