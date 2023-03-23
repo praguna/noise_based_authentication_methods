@@ -75,29 +75,29 @@ class NvgnetFace(nn.Module):
         logits = logits / self.args.temperature
         return logits, labels
     
-    def compute_loss(self, features, features_prime):
-        logits, labels = self.info_nce_loss(features)
+    def compute_loss(self, features, features_prime, projection):
+        logits, labels = self.info_nce_loss(projection)
         l1 = self.criterion(logits, labels)
         l2 = self.correlationLoss(features, features_prime)
         return l1 * 0.22 + l2 * 0.78        
 
     def train(self, train_loader):
         for epoch in range(self.args.epoch):
-            for images in tqdm(train_loader):
+            for images in train_loader:
                 images = torch.cat(images, dim=0)
                 images = images.to(self.args.device)
-                features = self(images)
+                projection,features = self(images)
                 features_prime = self.arch0(images)
-                loss = self.compute_loss(features, features_prime)
+                loss = self.compute_loss(features, features_prime, projection)
                 loss.backward()
                 self.optimizer.step()
                 self.optimizer.zero_grad()
 
     def forward(self, x):
         x = self.backend_layer(x)['back_out0'].view(-1, 1792)
-        x = self.summaryVec(x)
-        x = self.nonLinearOut(x)
-        return x
+        y = self.summaryVec(x)
+        x = self.nonLinearOut(y)
+        return x,y 
 
 if __name__ == "__main__":
     # remove this 
@@ -114,24 +114,31 @@ if __name__ == "__main__":
                     help='weight_decay')
     parser.add_argument('--epoch', default=1, type=int,
                     help='epoch')
+    parser.add_argument('--batch_size', default=2, type=int,
+                    help='batch_size')
     args = parser.parse_args()
     import time
     nvgNetFace = NvgnetFace(args=args).to(device)
     in0 = torch.randn([64, 3, 160, 160]).to(device)
     s = time.time()
-    assert nvgNetFace(in0).shape == torch.Size([64, 128])
+    assert nvgNetFace(in0)[0].shape == torch.Size([64, 128])
     e = time.time()
     print(e - s)
-    ## private validation and initialization
-    # from opacus.validators import ModuleValidator
-    # errors = ModuleValidator.validate(nvgNetFace, strict=False)
-    # import sys
+    # private validation and initialization of required params
+    from opacus.validators import ModuleValidator
+    errors = ModuleValidator.validate(nvgNetFace, strict=False)
+    import sys
     # sys.setrecursionlimit(10000)
-    # nvgNetFace.backend_layer = ModuleValidator.fix(nvgNetFace.backend_layer)
-    # ModuleValidator.validate(nvgNetFace, strict=False)
-    # print(len(errors))
-    # nvgNetFace = nvgNetFace.to(device)
-    # s = time.time()
-    # assert nvgNetFace(in0).shape == torch.Size([64, 128])
-    # e = time.time()
-    # print(e - s)
+    nvgNetFace.summaryVec = ModuleValidator.fix(nvgNetFace.summaryVec)
+    nvgNetFace.backend_layer.conv2d_1a = ModuleValidator.fix(nvgNetFace.backend_layer.conv2d_1a)
+    ModuleValidator.validate(nvgNetFace.summaryVec, strict=False)
+    print(len(errors))
+    nvgNetFace = nvgNetFace.to(device)
+    s = time.time()
+    assert nvgNetFace(in0)[0].shape == torch.Size([64, 128])
+    e = time.time()
+    print(nvgNetFace.summaryVec, nvgNetFace.backend_layer.conv2d_1a)
+    print(e - s)
+    # testing the training loop
+    dummyLoader = [[torch.randn([2, 3, 168, 168]), torch.randn([2, 3, 168, 168])]]
+    nvgNetFace.train(dummyLoader)
