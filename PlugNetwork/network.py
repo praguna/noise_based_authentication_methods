@@ -4,6 +4,8 @@ import torch.nn.functional as F
 from facenet_pytorch import InceptionResnetV1
 from tqdm import tqdm
 from torchvision.models.feature_extraction import create_feature_extractor
+import warnings
+warnings.filterwarnings("ignore")
 
 # used in training and parameter setting
 ARCH = InceptionResnetV1(pretrained='vggface2').to('cuda')
