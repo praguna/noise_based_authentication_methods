@@ -5,6 +5,10 @@ from facenet_pytorch import InceptionResnetV1
 from tqdm import tqdm
 from torchvision.models.feature_extraction import create_feature_extractor
 
+# used in training and parameter setting
+ARCH = InceptionResnetV1(pretrained='vggface2').to('cuda')
+ARCH0 = InceptionResnetV1(pretrained='vggface2').eval().to('cuda')
+
 # coorelation loss
 class LogCoshLoss(nn.Module):
     def __init__(self):
@@ -19,13 +23,11 @@ class NvgnetFace(nn.Module):
     def __init__(self, *args, **kwargs):
         super(NvgnetFace, self).__init__()
         self.args = kwargs['args']
-        self.arch = InceptionResnetV1(pretrained='vggface2')
+        self.backend_layer = create_feature_extractor(ARCH, return_nodes={'avgpool_1a' : 'back_out0'})
         # Freeze all layers
-        for param in self.arch.parameters(): param.requires_grad = False
-
+        for param in self.backend_layer.parameters(): param.requires_grad = False
         # Unfreeze the first convolutional layer
-        for param in self.arch.conv2d_1a.parameters(): param.requires_grad = True
-        self.backend_layer = create_feature_extractor(self.arch, return_nodes={'avgpool_1a' : 'back_out0'})
+        for param in self.backend_layer.conv2d_1a.parameters(): param.requires_grad = True
         self.summaryVec = nn.Sequential(
             nn.Linear(1792, 512, bias=False),
             nn.BatchNorm1d(512, eps=0.001, momentum=0.1, affine=True)
@@ -38,11 +40,12 @@ class NvgnetFace(nn.Module):
         self.criterion = torch.nn.CrossEntropyLoss().to(self.args.device)
         self.correlationLoss = LogCoshLoss().to(self.args.device)
         # used to extract embedding
-        self.arch0 = InceptionResnetV1(pretrained='vggface2').eval().to(self.args.device)
         # optimizer 
         self.optimizer = torch.optim.Adam(self.parameters(), self.args.lr, weight_decay=self.args.weight_decay)
-
     
+    def init_optimizer(self):
+        self.optimizer = torch.optim.Adam(self.parameters(), self.args.lr, weight_decay=self.args.weight_decay)
+
 
     def info_nce_loss(self, features):
 
@@ -87,7 +90,7 @@ class NvgnetFace(nn.Module):
                 images = torch.cat(images, dim=0)
                 images = images.to(self.args.device)
                 projection,features = self(images)
-                features_prime = self.arch0(images)
+                features_prime = ARCH0(images)
                 loss = self.compute_loss(features, features_prime, projection)
                 loss.backward()
                 self.optimizer.step()
@@ -98,6 +101,24 @@ class NvgnetFace(nn.Module):
         y = self.summaryVec(x)
         x = self.nonLinearOut(y)
         return x,y 
+
+    def private_compute_loss(self, model, features, features_prime, projection):
+        logits, labels = self.info_nce_loss(projection)
+        l1 = model.criterion(logits, labels)
+        l2 = model.correlationLoss(features, features_prime)
+        return l1 * 0.22 + l2 * 0.78   
+    
+    def private_train(self, model, optimizer, train_loader):
+        for epoch in range(self.args.epoch):
+            for images in train_loader:
+                images = torch.cat(images, dim=0)
+                images = images.to(self.args.device)
+                projection,features = model(images)
+                features_prime = ARCH0(images)
+                loss = self.private_compute_loss(model, features, features_prime, projection)
+                loss.backward()
+                optimizer.step()
+                optimizer.zero_grad()
 
 if __name__ == "__main__":
     # remove this 
@@ -126,12 +147,11 @@ if __name__ == "__main__":
     print(e - s)
     # private validation and initialization of required params
     from opacus.validators import ModuleValidator
-    errors = ModuleValidator.validate(nvgNetFace, strict=False)
     import sys
-    # sys.setrecursionlimit(10000)
-    nvgNetFace.summaryVec = ModuleValidator.fix(nvgNetFace.summaryVec)
-    nvgNetFace.backend_layer.conv2d_1a = ModuleValidator.fix(nvgNetFace.backend_layer.conv2d_1a)
-    ModuleValidator.validate(nvgNetFace.summaryVec, strict=False)
+    sys.setrecursionlimit(100000)
+    nvgNetFace = ModuleValidator.fix(nvgNetFace)
+    # nvgNetFace.backend_layer = ModuleValidator.fix(nvgNetFace.backend_layer)
+    errors = ModuleValidator.validate(nvgNetFace, strict=False)
     print(len(errors))
     nvgNetFace = nvgNetFace.to(device)
     s = time.time()
@@ -139,6 +159,23 @@ if __name__ == "__main__":
     e = time.time()
     print(nvgNetFace.summaryVec, nvgNetFace.backend_layer.conv2d_1a)
     print(e - s)
+    nvgNetFace.init_optimizer()
     # testing the training loop
     dummyLoader = [[torch.randn([2, 3, 168, 168]), torch.randn([2, 3, 168, 168])]]
     nvgNetFace.train(dummyLoader)
+    # train privately
+    from torch.utils.data import TensorDataset, DataLoader, Dataset
+    import numpy as np
+    dataset = TensorDataset(torch.randn([1, 3, 168, 168]), torch.randn([1, 3, 168, 168]), torch.randn([1, 3, 168, 168]), torch.randn([1, 3, 168, 168])) # create your datset
+    dataloader = DataLoader(dataset, batch_size=4) # create your dataloader
+    from opacus import PrivacyEngine
+    privacy_engine = PrivacyEngine()
+    nvgNetFacePrivate, optimizer, train_loader = privacy_engine.make_private(
+        module=nvgNetFace,
+        optimizer=nvgNetFace.optimizer,
+        data_loader=dataloader,
+        noise_multiplier=1.1,
+        max_grad_norm=1.0,
+    )
+    # print(nvgNetFacePrivate)
+    nvgNetFace.private_train(nvgNetFacePrivate, optimizer, train_loader)
