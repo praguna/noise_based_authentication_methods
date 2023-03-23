@@ -111,16 +111,25 @@ class NvgnetFace(nn.Module):
         return l1 * 0.22 + l2 * 0.78   
     
     def private_train(self, model, optimizer, train_loader):
+        losses = []
         for epoch in range(self.args.epoch):
-            for images in train_loader:
+            for images in tqdm(train_loader):
                 images = torch.cat(images, dim=0)
                 images = images.to(self.args.device)
                 projection,features = model(images)
                 features_prime = ARCH0(images)
                 loss = self.private_compute_loss(model, features, features_prime, projection)
+                losses.append(loss.item())
                 loss.backward()
                 optimizer.step()
                 optimizer.zero_grad()
+
+            epsilon = privacy_engine.accountant.get_epsilon(delta=self.args.delta)
+            print(
+                f"Train Epoch: {epoch} \t"
+                f"Loss: {np.mean(losses):.6f} "
+                f"(ε = {epsilon:.2f}, δ = {self.args.delta})"
+            )
 
 if __name__ == "__main__":
     # remove this 
@@ -139,6 +148,8 @@ if __name__ == "__main__":
                     help='epoch')
     parser.add_argument('--batch_size', default=2, type=int,
                     help='batch_size')
+    parser.add_argument('--delta', default=1e-5, type=float,
+                    help='delta')
     args = parser.parse_args()
     import time
     nvgNetFace = NvgnetFace(args=args).to(device)
