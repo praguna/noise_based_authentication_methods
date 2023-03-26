@@ -16,7 +16,11 @@ class ContrastiveLearningViewGenerator(object):
         self.n_views = n_views
 
     def __call__(self, x):
-        return [self.base_transform(x) for i in range(self.n_views)]
+        try:
+            return [self.base_transform(x) for i in range(self.n_views)]
+        except:
+            print('error in image processing')
+            return [torch.zeros([3, 160, 160]), torch.zeros([3, 160, 160])] 
 
 
 class ContrastiveLearningDataset:
@@ -38,19 +42,20 @@ class ContrastiveLearningDataset:
     def get_dataset(self, path, n_views):
         return datasets.ImageFolder(root = path, transform = ContrastiveLearningViewGenerator(ContrastiveLearningDataset.get_simclr_pipeline_transform(96, self.mtcnn)))
 
-# checking speed
-if __name__ == "__main__":
-    import time
-    # preprocess dataset from drive
-    ffhq_path = '/content/drive/MyDrive/images1024x1024'
-    dataset = ContrastiveLearningDataset().get_dataset(ffhq_path, 2)
-    data_loader = torch.utils.data.DataLoader(dataset, batch_size=64, shuffle=True, 
-            num_workers=2, pin_memory=True, drop_last=True)
-    s = time.time()
-    for images, _ in data_loader:
-        images = torch.cat(images, dim=0)
-        # plt.imsave(f'delete_me.png', images[0].permute(1, 2, 0).numpy())
-        # print(x)
-        break
-    e = time.time()
-    print(e-s)
+# # checking speed
+# if __name__ == "__main__":
+#     import time
+#     # preprocess dataset from drive
+#     ffhq_path = '../dumps/thumbnails128x128/'
+#     dataset = ContrastiveLearningDataset().get_dataset(ffhq_path, 2)
+#     data_loader = torch.utils.data.DataLoader(dataset, batch_size=2, shuffle=True, 
+#             num_workers=2, pin_memory=True, drop_last=True)
+#     s = time.time()
+#     for images, _ in data_loader:
+#         images = torch.cat(images, dim=0)
+#         print(images.shape)
+#         # plt.imsave(f'delete_me.png', images[0].permute(1, 2, 0).numpy())
+#         # print(x)
+#         break
+#     e = time.time()
+#     print(e-s)

@@ -5,6 +5,7 @@ from facenet_pytorch import InceptionResnetV1
 from tqdm import tqdm
 from torchvision.models.feature_extraction import create_feature_extractor
 import warnings
+import numpy as np
 warnings.filterwarnings("ignore")
 
 # used in training and parameter setting
@@ -110,10 +111,10 @@ class NvgnetFace(nn.Module):
         l2 = model.correlationLoss(features, features_prime)
         return l1 * 0.22 + l2 * 0.78   
     
-    def private_train(self, model, optimizer, train_loader):
+    def private_train(self, model, optimizer, train_loader, privacy_engine):
         losses = []
         for epoch in range(self.args.epoch):
-            for images in tqdm(train_loader):
+            for images, _ in tqdm(train_loader):
                 images = torch.cat(images, dim=0)
                 images = images.to(self.args.device)
                 projection,features = model(images)
@@ -124,71 +125,72 @@ class NvgnetFace(nn.Module):
                 optimizer.step()
                 optimizer.zero_grad()
 
-            epsilon = privacy_engine.accountant.get_epsilon(delta=self.args.delta)
+                epsilon = privacy_engine.accountant.get_epsilon(delta=self.args.delta)
+                
             print(
                 f"Train Epoch: {epoch} \t"
                 f"Loss: {np.mean(losses):.6f} "
-                f"(ε = {epsilon:.2f}, δ = {self.args.delta})"
+                f"(ε = {epsilon:.4f}, δ = {self.args.delta})"
             )
 
-if __name__ == "__main__":
-    # remove this 
-    device  = 'cuda' if torch.cuda.is_available() else 'cpu'
-    import argparse
-    parser = argparse.ArgumentParser(description='Nvgnet')
-    parser.add_argument('--temperature', default=0.07, type=float,
-                    help='softmax temperature (default: 0.07)')
-    parser.add_argument('--device', default='cuda', type=str,
-                    help='device type')
-    parser.add_argument('--lr', default=0.0003, type=float,
-                    help='learning rate')
-    parser.add_argument('--weight_decay', default=0.0001, type=float,
-                    help='weight_decay')
-    parser.add_argument('--epoch', default=1, type=int,
-                    help='epoch')
-    parser.add_argument('--batch_size', default=2, type=int,
-                    help='batch_size')
-    parser.add_argument('--delta', default=1e-5, type=float,
-                    help='delta')
-    args = parser.parse_args()
-    import time
-    nvgNetFace = NvgnetFace(args=args).to(device)
-    in0 = torch.randn([64, 3, 160, 160]).to(device)
-    s = time.time()
-    assert nvgNetFace(in0)[0].shape == torch.Size([64, 128])
-    e = time.time()
-    print(e - s)
-    # private validation and initialization of required params
-    from opacus.validators import ModuleValidator
-    import sys
-    sys.setrecursionlimit(100000)
-    nvgNetFace = ModuleValidator.fix(nvgNetFace)
-    # nvgNetFace.backend_layer = ModuleValidator.fix(nvgNetFace.backend_layer)
-    errors = ModuleValidator.validate(nvgNetFace, strict=False)
-    print(len(errors))
-    nvgNetFace = nvgNetFace.to(device)
-    s = time.time()
-    assert nvgNetFace(in0)[0].shape == torch.Size([64, 128])
-    e = time.time()
-    print(nvgNetFace.summaryVec, nvgNetFace.backend_layer.conv2d_1a)
-    print(e - s)
-    nvgNetFace.init_optimizer()
-    # testing the training loop
-    dummyLoader = [[torch.randn([2, 3, 168, 168]), torch.randn([2, 3, 168, 168])]]
-    nvgNetFace.train(dummyLoader)
-    # train privately
-    from torch.utils.data import TensorDataset, DataLoader, Dataset
-    import numpy as np
-    dataset = TensorDataset(torch.randn([1, 3, 168, 168]), torch.randn([1, 3, 168, 168]), torch.randn([1, 3, 168, 168]), torch.randn([1, 3, 168, 168])) # create your datset
-    dataloader = DataLoader(dataset, batch_size=4) # create your dataloader
-    from opacus import PrivacyEngine
-    privacy_engine = PrivacyEngine()
-    nvgNetFacePrivate, optimizer, train_loader = privacy_engine.make_private(
-        module=nvgNetFace,
-        optimizer=nvgNetFace.optimizer,
-        data_loader=dataloader,
-        noise_multiplier=1.1,
-        max_grad_norm=1.0,
-    )
-    # print(nvgNetFacePrivate)
-    nvgNetFace.private_train(nvgNetFacePrivate, optimizer, train_loader)
+# if __name__ == "__main__":
+#     # remove this 
+#     device  = 'cuda' if torch.cuda.is_available() else 'cpu'
+#     import argparse
+#     parser = argparse.ArgumentParser(description='Nvgnet')
+#     parser.add_argument('--temperature', default=0.07, type=float,
+#                     help='softmax temperature (default: 0.07)')
+#     parser.add_argument('--device', default='cuda', type=str,
+#                     help='device type')
+#     parser.add_argument('--lr', default=0.0003, type=float,
+#                     help='learning rate')
+#     parser.add_argument('--weight_decay', default=0.0001, type=float,
+#                     help='weight_decay')
+#     parser.add_argument('--epoch', default=1, type=int,
+#                     help='epoch')
+#     parser.add_argument('--batch_size', default=2, type=int,
+#                     help='batch_size')
+#     parser.add_argument('--delta', default=1e-5, type=float,
+#                     help='delta')
+#     args = parser.parse_args()
+#     import time
+#     nvgNetFace = NvgnetFace(args=args).to(device)
+#     in0 = torch.randn([64, 3, 160, 160]).to(device)
+#     s = time.time()
+#     assert nvgNetFace(in0)[0].shape == torch.Size([64, 128])
+#     e = time.time()
+#     print(e - s)
+#     # private validation and initialization of required params
+#     from opacus.validators import ModuleValidator
+#     import sys
+#     sys.setrecursionlimit(100000)
+#     nvgNetFace = ModuleValidator.fix(nvgNetFace)
+#     # nvgNetFace.backend_layer = ModuleValidator.fix(nvgNetFace.backend_layer)
+#     errors = ModuleValidator.validate(nvgNetFace, strict=False)
+#     print(len(errors))
+#     nvgNetFace = nvgNetFace.to(device)
+#     s = time.time()
+#     assert nvgNetFace(in0)[0].shape == torch.Size([64, 128])
+#     e = time.time()
+#     print(nvgNetFace.summaryVec, nvgNetFace.backend_layer.conv2d_1a)
+#     print(e - s)
+#     nvgNetFace.init_optimizer()
+#     # testing the training loop
+#     dummyLoader = [[torch.randn([2, 3, 168, 168]), torch.randn([2, 3, 168, 168])]]
+#     nvgNetFace.train(dummyLoader)
+#     # train privately
+#     from torch.utils.data import TensorDataset, DataLoader, Dataset
+#     import numpy as np
+#     dataset = TensorDataset(torch.randn([1, 3, 168, 168]), torch.randn([1, 3, 168, 168]), torch.randn([1, 3, 168, 168]), torch.randn([1, 3, 168, 168])) # create your datset
+#     dataloader = DataLoader(dataset, batch_size=4) # create your dataloader
+#     from opacus import PrivacyEngine
+#     privacy_engine = PrivacyEngine()
+#     nvgNetFacePrivate, optimizer, train_loader = privacy_engine.make_private(
+#         module=nvgNetFace,
+#         optimizer=nvgNetFace.optimizer,
+#         data_loader=dataloader,
+#         noise_multiplier=1.1,
+#         max_grad_norm=1.0,
+#     )
+#     # print(nvgNetFacePrivate)
+#     nvgNetFace.private_train(nvgNetFacePrivate, optimizer, train_loader)
