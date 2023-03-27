@@ -52,13 +52,17 @@ class NvgnetFace(nn.Module):
 
     def info_nce_loss(self, features):
 
-        labels = torch.cat([torch.arange(self.args.batch_size) for i in range(2)], dim=0)
+        batch_size = len(features) // 2
+        labels = torch.cat([torch.arange(batch_size) for i in range(2)], dim=0)
         labels = (labels.unsqueeze(0) == labels.unsqueeze(1)).float()
         labels = labels.to(self.args.device)
 
         features = F.normalize(features, dim=1)
 
         similarity_matrix = torch.matmul(features, features.T)
+        std = 4 * np.sqrt(2 * batch_size - 1) * 0.001
+        dp_noise = torch.normal(torch.zeros_like(similarity_matrix), torch.full_like(similarity_matrix, std)).to(self.args.device)
+        similarity_matrix+=dp_noise
         # assert similarity_matrix.shape == (
         #     self.args.n_views * self.args.batch_size, self.args.n_views * self.args.batch_size)
         # assert similarity_matrix.shape == labels.shape
@@ -109,7 +113,7 @@ class NvgnetFace(nn.Module):
         logits, labels = self.info_nce_loss(projection)
         l1 = model.criterion(logits, labels)
         l2 = model.correlationLoss(features, features_prime)
-        return l1 * 0.22 + l2 * 0.78   
+        return l1 + l2 
     
     def private_train(self, model, optimizer, train_loader, privacy_engine):
         losses = []
@@ -127,11 +131,11 @@ class NvgnetFace(nn.Module):
 
                 epsilon = privacy_engine.accountant.get_epsilon(delta=self.args.delta)
                 
-            print(
-                f"Train Epoch: {epoch} \t"
-                f"Loss: {np.mean(losses):.6f} "
-                f"(ε = {epsilon:.4f}, δ = {self.args.delta})"
-            )
+                print(
+                    f"Train Epoch: {epoch} \t"
+                    f"Loss: {np.mean(losses):.6f} "
+                    f"(ε = {epsilon:.4f}, δ = {self.args.delta})"
+                )
 
 # if __name__ == "__main__":
 #     # remove this 

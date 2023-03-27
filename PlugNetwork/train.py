@@ -5,7 +5,7 @@ from opacus.validators import ModuleValidator
 import sys
 from opacus import PrivacyEngine
 
-torch.manual_seed(0)
+# torch.manual_seed(0)
 
 
 if __name__ == '__main__':
