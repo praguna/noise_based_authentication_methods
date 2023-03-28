@@ -30,7 +30,8 @@ class NvgnetFace(nn.Module):
         # Freeze all layers
         for param in self.backend_layer.parameters(): param.requires_grad = False
         # Unfreeze the first convolutional layer
-        for param in self.backend_layer.conv2d_1a.parameters(): param.requires_grad = True
+        ## for dp-adam training only
+        # for param in self.backend_layer.conv2d_1a.parameters(): param.requires_grad = True
         self.summaryVec = nn.Sequential(
             nn.Linear(1792, 512, bias=False),
             nn.BatchNorm1d(512, eps=0.001, momentum=0.1, affine=True)
@@ -61,8 +62,9 @@ class NvgnetFace(nn.Module):
 
         similarity_matrix = torch.matmul(features, features.T)
         std = 4 * np.sqrt(2 * batch_size - 1) * 0.001
-        dp_noise = torch.normal(torch.zeros_like(similarity_matrix), torch.full_like(similarity_matrix, std)).to(self.args.device)
-        similarity_matrix+=dp_noise
+        ## uncomment for DP-ADAM / DP-SGD training
+        # dp_noise = torch.normal(torch.zeros_like(similarity_matrix), torch.full_like(similarity_matrix, std)).to(self.args.device)
+        # similarity_matrix+=dp_noise
         # assert similarity_matrix.shape == (
         #     self.args.n_views * self.args.batch_size, self.args.n_views * self.args.batch_size)
         # assert similarity_matrix.shape == labels.shape
@@ -89,19 +91,27 @@ class NvgnetFace(nn.Module):
         logits, labels = self.info_nce_loss(projection)
         l1 = self.criterion(logits, labels)
         l2 = self.correlationLoss(features, features_prime)
-        return l1 * 0.22 + l2 * 0.78        
+        return l1 + l2      
 
     def train(self, train_loader):
         for epoch in range(self.args.epoch):
-            for images in train_loader:
+            losses = []
+            for images,_ in tqdm(train_loader):
                 images = torch.cat(images, dim=0)
                 images = images.to(self.args.device)
                 projection,features = self(images)
                 features_prime = ARCH0(images)
                 loss = self.compute_loss(features, features_prime, projection)
+                losses.append(loss.item())
+                # print(loss.item())
                 loss.backward()
                 self.optimizer.step()
                 self.optimizer.zero_grad()
+                
+            print(
+                f"Train Epoch: {epoch} \t"
+                f"Loss: {np.mean(losses):.6f}"
+            )
 
     def forward(self, x):
         x = self.backend_layer(x)['back_out0'].view(-1, 1792)
@@ -131,11 +141,11 @@ class NvgnetFace(nn.Module):
 
                 epsilon = privacy_engine.accountant.get_epsilon(delta=self.args.delta)
                 
-                print(
-                    f"Train Epoch: {epoch} \t"
-                    f"Loss: {np.mean(losses):.6f} "
-                    f"(ε = {epsilon:.4f}, δ = {self.args.delta})"
-                )
+            print(
+                f"Train Epoch: {epoch} \t"
+                f"Loss: {np.mean(losses):.6f} "
+                f"(ε = {epsilon:.4f}, δ = {self.args.delta})"
+            )
 
 # if __name__ == "__main__":
 #     # remove this 

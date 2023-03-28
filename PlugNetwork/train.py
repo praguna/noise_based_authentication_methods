@@ -30,28 +30,31 @@ if __name__ == '__main__':
     ffhq_path = '../dumps/thumbnails128x128/' # replace this to an args param
     # dataloader code
     dataset = ContrastiveLearningDataset().get_dataset(ffhq_path, 2)
-    data_loader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True)
+    data_loader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=2, pin_memory=True)
     # model code
     nvgNetFace = NvgnetFace(args=args).to(device)
-    sys.setrecursionlimit(100000)
-    nvgNetFace = ModuleValidator.fix(nvgNetFace)
-    errors = ModuleValidator.validate(nvgNetFace, strict=False)
-    print('num validation errors: ', len(errors))
-    nvgNetFace = nvgNetFace.to(device)
-    nvgNetFace.init_optimizer()
-    privacy_engine = PrivacyEngine()
-    nvgNetFacePrivate, optimizer, train_loader = privacy_engine.make_private(
-        module=nvgNetFace,
-        optimizer=nvgNetFace.optimizer,
-        data_loader=data_loader,
-        noise_multiplier=1.1,
-        max_grad_norm=1.0,
-        poisson_sampling=False
-    )
-    # print(nvgNetFacePrivate)
-    # for images, _ in train_loader:
-    #     images = torch.cat(images, dim=0)
-    #     print(images.shape)
-    #     exit(0)
+    ## public training
+    nvgNetFace.train(data_loader)
+    ## private training using DP-ADAM / DP-SGD
+    # sys.setrecursionlimit(100000)
+    # nvgNetFace = ModuleValidator.fix(nvgNetFace)
+    # errors = ModuleValidator.validate(nvgNetFace, strict=False)
+    # print('num validation errors: ', len(errors))
+    # nvgNetFace = nvgNetFace.to(device)
+    # nvgNetFace.init_optimizer()
+    # privacy_engine = PrivacyEngine()
+    # nvgNetFacePrivate, optimizer, train_loader = privacy_engine.make_private(
+    #     module=nvgNetFace,
+    #     optimizer=nvgNetFace.optimizer,
+    #     data_loader=data_loader,
+    #     noise_multiplier=1.1,
+    #     max_grad_norm=1.0,
+    #     poisson_sampling=False
+    # )
+    # # print(nvgNetFacePrivate)
+    # # for images, _ in train_loader:
+    # #     images = torch.cat(images, dim=0)
+    # #     print(images.shape)
+    # #     exit(0)
 
-    nvgNetFace.private_train(nvgNetFacePrivate, optimizer, data_loader, privacy_engine)
+    # nvgNetFace.private_train(nvgNetFacePrivate, optimizer, data_loader, privacy_engine)
