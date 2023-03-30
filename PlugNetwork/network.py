@@ -6,6 +6,7 @@ from tqdm import tqdm
 from torchvision.models.feature_extraction import create_feature_extractor
 import warnings
 import numpy as np
+import wandb
 warnings.filterwarnings("ignore")
 
 # used in training and parameter setting
@@ -32,13 +33,15 @@ class NvgnetFace(nn.Module):
         # Unfreeze the first convolutional layer
         ## for dp-adam training only
         # for param in self.backend_layer.conv2d_1a.parameters(): param.requires_grad = True
+        # setting full connected layer to train
+        for param in self.backend_layer.block8.parameters(): param.requires_grad = True
         self.summaryVec = nn.Sequential(
             nn.Linear(1792, 512, bias=False),
             nn.BatchNorm1d(512, eps=0.001, momentum=0.1, affine=True)
         )
         self.nonLinearOut = nn.Sequential(
             nn.Linear(512, 128),
-            nn.LeakyReLU()
+            nn.ReLU()
         )
 
         self.criterion = torch.nn.CrossEntropyLoss().to(self.args.device)
@@ -61,7 +64,7 @@ class NvgnetFace(nn.Module):
         features = F.normalize(features, dim=1)
 
         similarity_matrix = torch.matmul(features, features.T)
-        std = 4 * np.sqrt(2 * batch_size - 1) * 0.001
+        # std = 4 * np.sqrt(2 * batch_size - 1) * 0.001
         ## uncomment for DP-ADAM / DP-SGD training
         # dp_noise = torch.normal(torch.zeros_like(similarity_matrix), torch.full_like(similarity_matrix, std)).to(self.args.device)
         # similarity_matrix+=dp_noise
@@ -91,27 +94,51 @@ class NvgnetFace(nn.Module):
         logits, labels = self.info_nce_loss(projection)
         l1 = self.criterion(logits, labels)
         l2 = self.correlationLoss(features, features_prime)
-        return l1 + l2      
+        return l1 * 0.50 + l2
 
-    def train(self, train_loader):
-        for epoch in range(self.args.epoch):
-            losses = []
-            for images,_ in tqdm(train_loader):
+    def evaluate(self, val_loader, curr_loss = None, epoch = 0):
+        losses = []
+        avg_coorelation = []
+        with torch.no_grad():
+            for images, _ in tqdm(val_loader):
                 images = torch.cat(images, dim=0)
                 images = images.to(self.args.device)
                 projection,features = self(images)
                 features_prime = ARCH0(images)
                 loss = self.compute_loss(features, features_prime, projection)
                 losses.append(loss.item())
+                csm = torch.cosine_similarity(features_prime, features)
+                avg_coorelation.append([csm.mean().item()])
+        mean_loss =  np.mean(losses)
+        if self.args.wandb: 
+            wandb.log({'mean_val_loss' : mean_loss, 'epoch' : epoch})
+            table = wandb.Table(data=avg_coorelation, columns=["coorelation"])
+            wandb.log({'cosine_distribution_val': wandb.plot.histogram(table, "coorelation", title="Prediction Coorelation Distribution")})
+
+        # save the best
+        if curr_loss:
+           if curr_loss >= mean_loss:
+               torch.save(self.state_dict(), f'/home2/praguna.manvi/plg_models/model_{self.args.lr}_{self.args.batch_size}.pt')   
+               wandb.log({'saving_epoch' : epoch+1})
+
+
+    def train(self, train_loader, val_loader):
+        curr_loss = torch.inf
+        for epoch in range(self.args.epoch):
+            for images,_ in tqdm(train_loader):
+                images = torch.cat(images, dim=0)
+                images = images.to(self.args.device)
+                projection,features = self(images)
+                features_prime = ARCH0(images)
+                loss = self.compute_loss(features, features_prime, projection)
                 # print(loss.item())
+                if self.args.wandb: wandb.log({'loss' : loss.item(), 'epoch' : epoch+1})
                 loss.backward()
                 self.optimizer.step()
                 self.optimizer.zero_grad()
-                
-            print(
-                f"Train Epoch: {epoch} \t"
-                f"Loss: {np.mean(losses):.6f}"
-            )
+        
+        self.evaluate(val_loader, curr_loss, epoch+1)
+
 
     def forward(self, x):
         x = self.backend_layer(x)['back_out0'].view(-1, 1792)

@@ -6,3 +6,4 @@ dumps
 **/__pycache__/**
 **/pretrained_models/**
 .DS_STORE
+**/wandb
