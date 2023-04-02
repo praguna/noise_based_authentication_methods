@@ -41,8 +41,10 @@ if __name__ == "__main__":
           client.connect(('0.0.0.0', int(argv[1]))) 
           client.send(bytes('-', encoding="utf-8"))
 
-          N = np.array([np.random.randint(0, 2) for _ in range(200)])
-          X = get_Random_X(128)
+          # N = np.array([np.random.randint(0, 2) for _ in range(200)])
+          N = np.zeros((200,))
+          N[0 : 30] = 1
+          X = get_Random_X(128, False)
           #hard-coding noise
           bNAuth = BNAuth(X, N, R = R, party_type = Party.P1, socket = client, call_back = bin_2_float_call_back(i_size*2, d_size*2))
           s = time()
@@ -53,12 +55,12 @@ if __name__ == "__main__":
           X = get_Random_X(5, True)
           bNAuth1 = BNAuth(X, N, R = R, party_type = Party.P1, socket = client, call_back = bin_2_float_call_back(i_size*2, d_size*2))
           bNAuth1.octets, bNAuth1.selected_octect_index = bNAuth.octets, bNAuth.selected_octect_index # sanity check
+          print(bNAuth1.octets)
           d2 = bNAuth1.perform_secure_match(size=t_size)
           d_x = abs(d1) + abs(d2)
-          if d_x > 0.75 and d_x < 1.005: print(d_x) 
-          d = d1 + d2  
+          if d_x == abs(d1) : print(d1)
+          else: print('invalid octet set : ', d1)
           e = time()
           print(e - s, ' seconds')
-          print(d, d_x)
      except Exception as e: raise e
      finally:  client.close()

@@ -173,7 +173,7 @@ if __name__ == "__main__":
     R = np.array([np.random.choice([0, 1]) for _ in range(16 * 512)])
     # R = np.zeros(16, dtype=np.int8)
     i = 0
-    i_size , d_size = 2, 8
+    i_size , d_size = 1, 8
     t_size = i_size + d_size
     for a,b in zip(Arr1, Arr2):
         x = float_2_complement_decimal(i_size , d_size , a)
