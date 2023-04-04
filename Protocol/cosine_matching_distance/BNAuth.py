@@ -3,7 +3,7 @@ from utils import Party, M as AND_MATRIX, convert_to_str, xor_on_numpy1D, xor_on
 import numpy as np
 import socket, json, tqdm
 from collections import deque
-import struct, gzip
+import struct, gzip, pickle as pk
 
 # setting the seed 
 # np.random.seed(42)
@@ -41,6 +41,7 @@ class BNAuth(object):
         self.octets = []
         self.X1 = None
         self.Y1 = None
+        self.R1 = None
         assert self.m > 0
     
 
@@ -462,13 +463,14 @@ class BNAuth(object):
         while len(self.selected_octect_index) == 0:
             self.selected_octect_index += self.perform_distillation(self.X1, self.Y1)
         
-        # distribute R as R1 or R2
-        if self.party_type == Party.P1 : 
-            self.R1,_ = self.create_distributed_vectors(self.R, 'R2')
-            self.socket.recvmsg(1)[0]
-        else: 
-            self.R1 = self.recieve_from_peer()['R2']
-            self.socket.sendall(struct.pack('?', True))
+        if self.R1 is None :
+            # distribute R as R1 or R2
+            if self.party_type == Party.P1: 
+                self.R1,_ = self.create_distributed_vectors(self.R, 'R2')
+                self.socket.recvmsg(1)[0]
+            else: 
+                self.R1 = self.recieve_from_peer()['R2']
+                self.socket.sendall(struct.pack('?', True))
         
         # select random octets
         self.selected_octets = self.octets[self.fetch_octect_bulk(batch_size=50000)]
@@ -485,28 +487,39 @@ class BNAuth(object):
         '''
         setting these values for downstream tasks
         '''
-        self.X1 = obj.X1
-        self.Y1 = obj.Y1
-        self.R1 = obj.R1
-        self.octets = obj.octets
-        self.selected_octect_index = obj.selected_octect_index
+        self.X1 = obj['X1']
+        self.Y1 = obj['Y1']
+        self.R1 = obj['R1']
+        self.octets = obj['octets']
+        self.selected_octect_index = obj['selected_octect_index']
     
     def precompute_octets(self):
         '''
         performs distillation , preprocessing and distribution of vectors
         '''
+        self.octets = self.preprocess() 
         self.X1, _ = self.create_distributed_vectors(self.X)
         self.Y1 =  np.array(self.fetch_distributed_vector())
         if self.party_type == Party.P2: self.Y1, self.X1 = self.X1, self.Y1
+
         # perform distillation
         while len(self.selected_octect_index) == 0:
             self.selected_octect_index += self.perform_distillation(self.X1, self.Y1)
+        
+        # distribute R as R1 or R2
+        if self.party_type == Party.P1: 
+            self.R1,_ = self.create_distributed_vectors(self.R, 'R2')
+            self.socket.recvmsg(1)[0]
+        else: 
+            self.R1 = self.recieve_from_peer()['R2']
+            self.socket.sendall(struct.pack('?', True))        
 
 
     def perform_secure_match_parallel_inputs(self, sums = [], size = 16, noise = False):
         '''
         take x1, x2, x3 .... xN computed partial sums in parallel and add them together 
         '''
+        self.selected_octets = self.octets[self.fetch_octect_bulk(batch_size=5000)]
         final_sum = sums[0] 
         for i in range(1, len(sums)):
             final_sum = self.add_2_numbers(sums[i], final_sum, size * 2, noise)
@@ -515,3 +528,21 @@ class BNAuth(object):
         d2 = self.recieve_from_peer()['d2']
         d = np.logical_xor(final_sum, d2)
         return self.call_back(d)
+
+    def save(self, ports = []):
+        with open(f'{self.party_type}.pk' , 'wb') as f: 
+            obj = {'octets' : self.octets, 'selected_octect_index' : self.selected_octect_index}
+            batch_size = len(self.X) // len(ports)
+            for i, p in enumerate(ports):
+                obj[f'{p}_X1'] = self.X1[batch_size * i : batch_size * (i+1)]
+                obj[f'{p}_Y1'] = self.Y1[batch_size * i : batch_size * (i+1)]
+                obj[f'{p}_R1'] = self.R1[batch_size * i : batch_size * (i+1)]
+            pk.dump(obj, f)
+    
+    def load(self, port = 3000):
+        with open(f'{self.party_type}.pk' , 'rb') as f: 
+            obj = pk.load(f)
+        obj['X1'] = obj[f'{port}_X1']
+        obj['Y1'] = obj[f'{port}_Y1']
+        obj['R1'] = obj[f'{port}_R1']
+        self.set_distributed_inputs(obj)

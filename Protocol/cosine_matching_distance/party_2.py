@@ -53,6 +53,7 @@ if __name__ == "__main__":
           # call_back = bin_2_float_call_back(i_size * 2 , d_size * 2) # to get the float answer
           call_back = None
           bNAuth = BNAuth(X, np.zeros(200), party_type = Party.P2, socket = conn, call_back = call_back)
+          if call_back is None: bNAuth.load(int(argv[1])) #replace with other values
           s = time()
           d = bNAuth.perform_secure_match(size=t_size)
           e = time()

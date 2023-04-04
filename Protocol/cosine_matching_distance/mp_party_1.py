@@ -42,13 +42,22 @@ def runcode(p):
 
 if __name__ == "__main__":
     start = 'INFO:root:['
+    call_back = bin_2_float_call_back(i_size * 2 , d_size * 2) # to get the float answer
     for _ in tqdm.tqdm(range(5)): 
      try:
         subprocess.Popen(shlex.split(f'rm P1.log'))
-        P = [3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007]
+        N = np.zeros((200,))
+        N[0 : 30] = 1
+        X = get_Random_X(512, False)
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client.connect(('0.0.0.0', int(argv[1]))) 
+        client.send(bytes('-', encoding="utf-8"))
+        bNAuth = BNAuth(X, N, R = R, party_type = Party.P1, socket = client, call_back = call_back)
+        bNAuth.precompute_octets()
+        P = [3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007] #has to be ordered
+        bNAuth.save(P)
         for p in P: runcode(p)
         s = time()
-        call_back = bin_2_float_call_back(i_size * 2 , d_size * 2) # to get the float answer
         while True: # await for processing to complete
             if os.path.exists("P1.log"):
                 with open("P1.log", 'r') as f:
@@ -64,16 +73,20 @@ if __name__ == "__main__":
                         X = [e[0] for e in port_X]
                         e = time()
                         # print(e - s)
+                        #indicate processing is complete
+                        client.send(bytes('M', encoding="utf-8"))
                         break
-        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client.connect(('0.0.0.0', int(argv[1]))) 
-        client.send(bytes('-', encoding="utf-8"))
-        N = np.zeros((200,))
-        N[0 : 30] = 1
-        bNAuth = BNAuth(np.zeros(100), N, R = R, party_type = Party.P1, socket = client, call_back = call_back)
-        bNAuth.octets = np.array([[0,0,0,1]]) # replace with original later
-        bNAuth.selected_octets = np.array([[0,0,0,1]])
-        bNAuth.selected_octect_index = np.array([0])
+        # client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # client.connect(('0.0.0.0', int(argv[1]))) 
+        # client.send(bytes('-', encoding="utf-8"))
+        # N = np.zeros((200,))
+        # N[0 : 30] = 1
+        # bNAuth = BNAuth(np.zeros(100), N, R = R, party_type = Party.P1, socket = client, call_back = call_back)
+        # bNAuth.octets = np.array([[0,0,0,1]]) # replace with original later
+        # bNAuth.selected_octets = np.array([[0,0,0,1]])
+        # bNAuth.selected_octect_index = np.array([0])
+        # bNAuth.save()
+        # bNAuth.load()
         d = bNAuth.perform_secure_match_parallel_inputs(X, t_size)
         e = time()
         print(e - s)
@@ -81,5 +94,6 @@ if __name__ == "__main__":
         
           
      except Exception as e: 
-         print('Errorin network : ', e, 'dropping this')
+         raise e
+         print('Error : ', e, 'dropping this')
      finally:  client.close()

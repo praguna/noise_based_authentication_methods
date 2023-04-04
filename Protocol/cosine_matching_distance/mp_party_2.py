@@ -55,7 +55,7 @@ if __name__ == "__main__":
     serv.listen()
     print(f'server started at {argv[1]}!!!')
     subprocess.Popen(shlex.split(f'rm P2.log'))
-    P = [3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007]
+    P = [3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007] #has to be ordered
     # start multiple processes
     for p in P: teardown(p)
     for p in P: startup(p)
@@ -63,8 +63,13 @@ if __name__ == "__main__":
     while True:
        try:
             # accept connection 
+            I = get_Random_X(512)
             conn, addr = serv.accept()
             mode = conn.recv(8096).decode('utf-8')
+            bNAuth = BNAuth(I, np.zeros(200), party_type = Party.P2, socket = conn, call_back = call_back)
+            bNAuth.precompute_octets()
+            bNAuth.save(P)
+            conn.recv(8096).decode('utf-8')
             with open("P2.log", 'r') as f: lines = f.readlines()
             port_X = []
             for line in lines[-len(P):]:
@@ -73,10 +78,10 @@ if __name__ == "__main__":
                 port_X.append((x, p))
             port_X.sort(key = lambda e : e[1])
             X = [e[0] for e in port_X]
-            bNAuth = BNAuth(np.zeros(100), np.zeros(200), party_type = Party.P2, socket = conn, call_back = call_back)
-            bNAuth.octets = np.array([[0,0,0,0]]) # replace with original later
-            bNAuth.selected_octets = np.array([[0,0,0,0]])
-            bNAuth.selected_octect_index = [0]
+            # bNAuth = BNAuth(np.zeros(100), np.zeros(200), party_type = Party.P2, socket = conn, call_back = call_back)
+            # bNAuth.octets = np.array([[0,0,0,0]]) # replace with original later
+            # bNAuth.selected_octets = np.array([[0,0,0,0]])
+            # bNAuth.selected_octect_index = [0]
             d = bNAuth.perform_secure_match_parallel_inputs(X, t_size)
         #  print(d)
          
