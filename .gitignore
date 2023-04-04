@@ -7,3 +7,4 @@ dumps
 **/pretrained_models/**
 .DS_STORE
 **/wandb
+*.log

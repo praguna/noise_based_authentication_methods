@@ -39,6 +39,8 @@ class BNAuth(object):
         self.call_back = call_back
         self.oc_count = -1
         self.octets = []
+        self.X1 = None
+        self.Y1 = None
         assert self.m > 0
     
 
@@ -451,9 +453,10 @@ class BNAuth(object):
             self.octets = self.preprocess() 
 
         # distribute and recieve X,Y as X1, Y1
-        self.X1, _ = self.create_distributed_vectors(self.X)
-        self.Y1 =  np.array(self.fetch_distributed_vector())
-        if self.party_type == Party.P2: self.Y1, self.X1 = self.X1, self.Y1
+        if self.X1 is None and self.Y1 is None:
+            self.X1, _ = self.create_distributed_vectors(self.X)
+            self.Y1 =  np.array(self.fetch_distributed_vector())
+            if self.party_type == Party.P2: self.Y1, self.X1 = self.X1, self.Y1
 
         # perform distillation
         while len(self.selected_octect_index) == 0:
@@ -472,8 +475,43 @@ class BNAuth(object):
         
         # perform cosine distance
         d1 = self.cosine_distance(size, noise)
+        if self.call_back is None: return d1
         self.send_to_peer(json.dumps({'d2' : serialize_nd_array(d1)}))
         d2 = self.recieve_from_peer()['d2']
         d = np.logical_xor(d1, d2)
-        if self.call_back is None: return d
+        return self.call_back(d)
+    
+    def set_distributed_inputs(self, obj):
+        '''
+        setting these values for downstream tasks
+        '''
+        self.X1 = obj.X1
+        self.Y1 = obj.Y1
+        self.R1 = obj.R1
+        self.octets = obj.octets
+        self.selected_octect_index = obj.selected_octect_index
+    
+    def precompute_octets(self):
+        '''
+        performs distillation , preprocessing and distribution of vectors
+        '''
+        self.X1, _ = self.create_distributed_vectors(self.X)
+        self.Y1 =  np.array(self.fetch_distributed_vector())
+        if self.party_type == Party.P2: self.Y1, self.X1 = self.X1, self.Y1
+        # perform distillation
+        while len(self.selected_octect_index) == 0:
+            self.selected_octect_index += self.perform_distillation(self.X1, self.Y1)
+
+
+    def perform_secure_match_parallel_inputs(self, sums = [], size = 16, noise = False):
+        '''
+        take x1, x2, x3 .... xN computed partial sums in parallel and add them together 
+        '''
+        final_sum = sums[0] 
+        for i in range(1, len(sums)):
+            final_sum = self.add_2_numbers(sums[i], final_sum, size * 2, noise)
+
+        self.send_to_peer(json.dumps({'d2' : serialize_nd_array(final_sum)}))
+        d2 = self.recieve_from_peer()['d2']
+        d = np.logical_xor(final_sum, d2)
         return self.call_back(d)

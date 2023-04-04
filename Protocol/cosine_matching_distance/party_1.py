@@ -5,6 +5,9 @@ from binary_cosine_local import *
 from BNAuth import *
 import socket, json, tqdm
 from sys import argv
+import logging
+
+config = logging.basicConfig(filename='P1.log', level=logging.INFO)
 
 key_default = 'key_5400'
 
@@ -35,7 +38,7 @@ def get_Random_X(n = 512, zeros = False):
      return X
 
 if __name__ == "__main__":
-    for _ in tqdm.tqdm(range(1)): 
+    for _ in range(1): 
      try:
           client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
           client.connect(('0.0.0.0', int(argv[1]))) 
@@ -44,18 +47,24 @@ if __name__ == "__main__":
           # N = np.array([np.random.randint(0, 2) for _ in range(200)])
           N = np.zeros((200,))
           N[0 : 30] = 1
-          X = get_Random_X(128, False)
+          X = get_Random_X(64, False)
           #hard-coding noise
-          bNAuth = BNAuth(X, N, R = R, party_type = Party.P1, socket = client, call_back = bin_2_float_call_back(i_size*2, d_size*2))
+          # call_back = bin_2_float_call_back(i_size * 2 , d_size * 2) # to get the float answer
+          call_back = None
+          bNAuth = BNAuth(X, N, R = R, party_type = Party.P1, socket = client, call_back = call_back)
           s = time()
           d1 = bNAuth.perform_secure_match(size=t_size)
           e = time()
-          print(e - s, ' seconds')
+          if not call_back:
+              logging.info(f'{d1.astype(np.int8)} | {int(argv[1])} | {e-s}') # return to console 
+              client.close() # comment this for 1 process computation
+              continue
+          if call_back:
+               print(e - s, ' seconds')
           ## second
           X = get_Random_X(5, True)
-          bNAuth1 = BNAuth(X, N, R = R, party_type = Party.P1, socket = client, call_back = bin_2_float_call_back(i_size*2, d_size*2))
+          bNAuth1 = BNAuth(X, N, R = R, party_type = Party.P1, socket = client, call_back = call_back)
           bNAuth1.octets, bNAuth1.selected_octect_index = bNAuth.octets, bNAuth.selected_octect_index # sanity check
-          print(bNAuth1.octets)
           d2 = bNAuth1.perform_secure_match(size=t_size)
           d_x = abs(d1) + abs(d2)
           if d_x == abs(d1) : print(d1)
