@@ -10,4 +10,4 @@ dumps
 *.log
 *.pk
 *.out
-**/run_train.sh
+*.sh
