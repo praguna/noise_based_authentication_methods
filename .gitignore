@@ -9,3 +9,5 @@ dumps
 **/wandb
 *.log
 *.pk
+*.out
+**/run_train.sh

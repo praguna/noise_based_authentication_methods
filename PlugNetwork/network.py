@@ -114,12 +114,14 @@ class NvgnetFace(nn.Module):
             wandb.log({'mean_val_loss' : mean_loss, 'epoch' : epoch})
             table = wandb.Table(data=avg_coorelation, columns=["coorelation"])
             wandb.log({'cosine_distribution_val': wandb.plot.histogram(table, "coorelation", title="Prediction Coorelation Distribution")})
+            print('loss saved for epoch : ', epoch)
 
         # save the best
         if curr_loss:
            if curr_loss >= mean_loss:
                torch.save(self.state_dict(), f'/home2/praguna.manvi/plg_models/model_{self.args.lr}_{self.args.batch_size}.pt')   
                wandb.log({'saving_epoch' : epoch+1})
+        return mean_loss
 
 
     def train(self, train_loader, val_loader):
@@ -137,7 +139,7 @@ class NvgnetFace(nn.Module):
                 self.optimizer.step()
                 self.optimizer.zero_grad()
         
-        self.evaluate(val_loader, curr_loss, epoch+1)
+            curr_loss = self.evaluate(val_loader, curr_loss, epoch+1)
 
 
     def forward(self, x):

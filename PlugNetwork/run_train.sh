@@ -12,6 +12,6 @@
 conda activate plg_env
 
 echo 'running code'
-python3 train.py --epoch 5
+python3 train.py --epoch 1 --expname experiment_9
 echo 'run code'
 

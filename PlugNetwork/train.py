@@ -30,6 +30,8 @@ if __name__ == '__main__':
                     help='delta')
     parser.add_argument('--wandb', default=True, type=bool,
                     help='wandb')
+    parser.add_argument('--expname', default=True, type=str,
+                    help='experiment_8')
     args = parser.parse_args()
     ffhq_path = '../dumps/thumbnails128x128/' # replace this to an args param
     # dataloader codes
@@ -48,7 +50,7 @@ if __name__ == '__main__':
       # Set the project where this run will be logged
       project="plg_net", 
       # We pass a run name (otherwise it’ll be randomly assigned, like sunshine-lollypop-10)
-      name=f"experiment_5", 
+      name=args.expname, 
       # Track hyperparameters and run metadata
       config={
         "learning_rate": args.lr,
