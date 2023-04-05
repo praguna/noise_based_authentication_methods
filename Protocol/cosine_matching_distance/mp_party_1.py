@@ -43,7 +43,7 @@ def runcode(p):
 if __name__ == "__main__":
     start = 'INFO:root:['
     call_back = bin_2_float_call_back(i_size * 2 , d_size * 2) # to get the float answer
-    for _ in tqdm.tqdm(range(5)): 
+    for _ in tqdm.tqdm(range(20)): 
      try:
         subprocess.Popen(shlex.split(f'rm P1.log'))
         N = np.zeros((200,))
@@ -52,16 +52,19 @@ if __name__ == "__main__":
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client.connect(('0.0.0.0', int(argv[1]))) 
         client.send(bytes('-', encoding="utf-8"))
+        client.recv(8096).decode('utf-8')
         bNAuth = BNAuth(X, N, R = R, party_type = Party.P1, socket = client, call_back = call_back)
         bNAuth.precompute_octets()
         P = [3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007] #has to be ordered
         bNAuth.save(P)
+        # continue
         for p in P: runcode(p)
         s = time()
         while True: # await for processing to complete
             if os.path.exists("P1.log"):
                 with open("P1.log", 'r') as f:
                     lines = f.readlines()
+                    if time() - s > 5 : raise Exception('time out!!')
                     if len(lines) == len(P):
                         port_X = []
                         for line in lines:
@@ -94,6 +97,6 @@ if __name__ == "__main__":
         
           
      except Exception as e: 
-         raise e
+        #  raise e
          print('Error : ', e, 'dropping this')
      finally:  client.close()

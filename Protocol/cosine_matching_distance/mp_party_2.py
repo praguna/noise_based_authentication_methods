@@ -54,7 +54,7 @@ if __name__ == "__main__":
     serv.bind(('0.0.0.0', int(argv[1])))
     serv.listen()
     print(f'server started at {argv[1]}!!!')
-    subprocess.Popen(shlex.split(f'rm P2.log'))
+    # subprocess.Popen(shlex.split(f'rm P2.log'))
     P = [3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007] #has to be ordered
     # start multiple processes
     for p in P: teardown(p)
@@ -66,10 +66,13 @@ if __name__ == "__main__":
             I = get_Random_X(512)
             conn, addr = serv.accept()
             mode = conn.recv(8096).decode('utf-8')
+            conn.send(bytes('-', encoding="utf-8"))
             bNAuth = BNAuth(I, np.zeros(200), party_type = Party.P2, socket = conn, call_back = call_back)
             bNAuth.precompute_octets()
             bNAuth.save(P)
-            conn.recv(8096).decode('utf-8')
+            # continue
+            p = conn.recv(8096).decode('utf-8')
+            if p != 'M': raise Exception('close the client and tear down')
             with open("P2.log", 'r') as f: lines = f.readlines()
             port_X = []
             for line in lines[-len(P):]:
@@ -87,7 +90,7 @@ if __name__ == "__main__":
          
         
        except Exception as e: 
-           print('Error : ',e)
-        #    raise e
+           print('Error mp : ',e)
            for p in P: teardown(p)
+           for p in P: startup(p)
        finally: conn.close()

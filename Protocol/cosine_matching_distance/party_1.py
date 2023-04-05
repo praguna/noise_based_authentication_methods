@@ -72,5 +72,6 @@ if __name__ == "__main__":
           else: print('invalid octet set : ', d1)
           e = time()
           print(e - s, ' seconds')
-     except Exception as e: raise e
+     except Exception as e: 
+         print(f'error at port : {argv[1]}', e)
      finally:  client.close()
