@@ -7,9 +7,9 @@ import itertools
 from hair_segmentation import *
 import torch
 # from torchsr.models import ninasr_b0
-from torchvision.transforms.functional import to_tensor
+from torchvision import transforms
 import torchvision.models as models
-mobilenet_v3_small = models.mobilenet_v3_small(pretrained=True)
+# mobilenet_v3_small = models.mobilenet_v3_small(pretrained=True)
 resnet_50 = models.resnet50(pretrained=True)
 # print(mobilenet_v3_small)
 # mobilenet_v3_rep = torch.nn.Sequential(*(list(mobilenet_v3_small.children())[:-1]))
@@ -27,6 +27,11 @@ mp_drawing_styles = mp.solutions.drawing_styles
 # sr.readModel('../dumps/EDSR_x4.pb')
 # sr.setModel("edsr",4)
 hairsegmentation = HairSegmentation(1024, 1024)
+
+Tr = transforms.Compose([
+    transforms.ToTensor(),
+    # transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+])
 
 path = None
 if len(sys.argv) > 1:
@@ -133,9 +138,9 @@ def detect_mediapipe(path):
                 # L_t = to_tensor(Image.fromarray(cv2.resize(left_eye, (128, 128)))).unsqueeze(0)
                 # R_t = to_tensor(Image.fromarray(cv2.resize(right_eye, (128, 128)))).unsqueeze(0)
                 # H_t = to_tensor(Image.fromarray(cv2.resize(extracted_img, (128, 128)))).unsqueeze(0)
-                L_t = to_tensor(Image.fromarray(cv2.resize(left_eye, (18, 18)))).unsqueeze(0)
-                R_t = to_tensor(Image.fromarray(cv2.resize(right_eye, (18, 18)))).unsqueeze(0)
-                H_t = to_tensor(Image.fromarray(cv2.resize(extracted_img, (128, 128)))).unsqueeze(0)
+                L_t = Tr(Image.fromarray(cv2.resize(left_eye, (18, 18)))).unsqueeze(0)
+                R_t = Tr(Image.fromarray(cv2.resize(right_eye, (18, 18)))).unsqueeze(0)
+                H_t = Tr(Image.fromarray(cv2.resize(extracted_img, (128, 128)))).unsqueeze(0)
                 # E = torch.cat([mobilenet_v3_rep(L_t), mobilenet_v3_rep(R_t), mobilenet_v3_rep(H_t)], dim=1)
                 # E = torch.cat([mobilenet_v3_rep(L_t), mobilenet_v3_rep(R_t), mobilenet_v3_rep(H_t)], dim=1)
                 E = torch.cat([resnet_50(L_t).view(1, -1), resnet_50(R_t).view(1, -1), resnet_50(H_t).view(1, -1)], dim=1)
