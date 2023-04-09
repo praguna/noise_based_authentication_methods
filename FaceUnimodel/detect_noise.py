@@ -10,7 +10,9 @@ import torch
 from torchvision import transforms
 import torchvision.models as models
 # mobilenet_v3_small = models.mobilenet_v3_small(pretrained=True)
-resnet_50 = models.resnet50(pretrained=True)
+weights = models.ResNet50_Weights.IMAGENET1K_V1
+# preprocess = weights.transforms()
+resnet_50 = models.resnet50(weights=weights)
 # print(mobilenet_v3_small)
 # mobilenet_v3_rep = torch.nn.Sequential(*(list(mobilenet_v3_small.children())[:-1]))
 # until_last_layer = torch.nn.Sequential(*(list(mobilenet_v3_small.classifier.children())[:-1]))
