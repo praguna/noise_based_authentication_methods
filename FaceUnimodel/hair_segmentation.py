@@ -111,7 +111,7 @@ def download_github_model(model_url, model_path):
 def extract_masked_regions(image, mask):
     masked_image = np.copy(image)
     masked_image[mask > 0] = image[mask > 0]
-    masked_image[mask <= 0] = 0
+    masked_image[mask <= 0] = 255
     return masked_image
 
 def extract_masked_regions_overlay(image, mask):

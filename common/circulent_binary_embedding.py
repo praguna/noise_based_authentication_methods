@@ -22,6 +22,10 @@ def cbe_prediction(model: list, X : np.ndarray):
     B[B_time<0] = 0
     return B
 
+def cbe_prediction_with_opd(model : list, X : np.ndarray):
+    X_d = one_parameter_defense(X)
+    return cbe_prediction(model, X_d)
+
 
 if __name__ == "__main__":
     model = cbe_random(512)

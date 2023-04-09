@@ -1,14 +1,32 @@
 import cv2
 import numpy as np
-import imutils
 import sys
 import mediapipe as mp
+from PIL import Image
 import itertools
 from hair_segmentation import *
+import torch
+# from torchsr.models import ninasr_b0
+from torchvision.transforms.functional import to_tensor
+import torchvision.models as models
+mobilenet_v3_small = models.mobilenet_v3_small(pretrained=True)
+resnet_50 = models.resnet50(pretrained=True)
+# print(mobilenet_v3_small)
+# mobilenet_v3_rep = torch.nn.Sequential(*(list(mobilenet_v3_small.children())[:-1]))
+# until_last_layer = torch.nn.Sequential(*(list(mobilenet_v3_small.classifier.children())[:-1]))
+# mobilenet_v3_rep = torch.nn.Sequential(mobilenet_v3_rep, torch.nn.Flatten(),  until_last_layer).eval()
+resnet_50 =  torch.nn.Sequential(*(list(resnet_50.children())[:-1])).eval()
+
 
 mp_face_mesh = mp.solutions.face_mesh
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
+
+# sr_model = ninasr_b0(scale=4, pretrained=True).eval()
+# sr = cv2.dnn_superres.DnnSuperResImpl_create()
+# sr.readModel('../dumps/EDSR_x4.pb')
+# sr.setModel("edsr",4)
+hairsegmentation = HairSegmentation(1024, 1024)
 
 path = None
 if len(sys.argv) > 1:
@@ -63,12 +81,21 @@ def detect_mediapipe(path):
     with mp_face_mesh.FaceMesh(max_num_faces=1,refine_landmarks=True,min_detection_confidence=0.6,
                             min_tracking_confidence=0.6) as face_mesh:
             img = cv2.imread(path)
+            img  = cv2.resize(img,dsize=(1024, 1024))
+            # img = sr.upsample(img)
+            # img  = cv2.resize(img,dsize=None,fx=4,fy=4)
+            # print(img_sr.shape)
             rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            # n_tensor = sr_model(to_tensor(Image.fromarray(rgb)).unsqueeze(0)).squeeze(0)
+            # to_pil_image(n_tensor).
+            # bgr = cv2.cvtColor(np.array(to_pil_image(n_tensor)), cv2.COLOR_BGR2RGB)
+            # rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
             results = face_mesh.process(rgb)
-            img_h, img_w = img.shape[:2]
+            # img_h, img_w = img.shape[:2]
+            img_h, img_w = 1024, 1024
             mesh_points=np.array([np.multiply([p.x, p.y], [img_w, img_h]).astype(int) for p in results.multi_face_landmarks[0].landmark])
             # create mask for hair
-            hairsegmentation = HairSegmentation(rgb.shape[1], rgb.shape[0])
+            
             masked_img_hair = hairsegmentation(rgb)
             masked_img_hair = np.stack([masked_img_hair, masked_img_hair, masked_img_hair], axis=-1)
             masked_img = np.zeros_like(img)
@@ -88,22 +115,35 @@ def detect_mediapipe(path):
             # cv2.imwrite('../dumps/mask.png', im_floodfill)
             masked_img_hair[im_floodfill > 0] = 0
             # create mask for the eyes
-            extracted_img = extract_masked_regions(img, masked_img_hair)
+            extracted_img = extract_masked_regions(img, masked_img_hair) #hair
             x,y,w,h = cv2.boundingRect(mesh_points[LEFT_EYE])
-            cv2.imwrite('../dumps/example_mediapipe_lefteye.png', img[y : y+h, x : x+w, :])
+            left_eye = img[y : y+h, x : x+w, :]
+            # cv2.imwrite('../dumps/example_mediapipe_lefteye.png', img[y : y+h, x : x+w, :])
             x,y,w,h = cv2.boundingRect(mesh_points[RIGHT_EYE])
-            cv2.imwrite('../dumps/example_mediapipe_righteye.png', img[y : y+h, x : x+w, :])
-            cv2.imwrite('../dumps/example_mediapipe_hair.png', extracted_img)
+            right_eye = img[y : y+h, x : x+w, :]
+            # cv2.imwrite('../dumps/example_mediapipe_righteye.png', img[y : y+h, x : x+w, :])
+            # cv2.imwrite('../dumps/example_mediapipe_hair.png', extracted_img)
             cv2.fillPoly(masked_img_hair, [mesh_points[LEFT_EYE]], (255,255,255))
             cv2.fillPoly(masked_img_hair, [mesh_points[RIGHT_EYE]], (255,255,255))
-            extracted_img = extract_masked_regions(img, masked_img_hair)
-            cv2.imwrite('../dumps/example_mediapipe_hair_eye.png', extracted_img)
-            extracted_img = extract_masked_regions_overlay(img, masked_img_hair)
-            cv2.imwrite('../dumps/example_mediapipe_hair_eye_overlay.png', extracted_img)
-            
+            extracted_img_1 = extract_masked_regions(img, masked_img_hair) # eye and hair
+            cv2.imwrite('../dumps/example_mediapipe_hair_eye.png', extracted_img_1)
+            extracted_img_2 = extract_masked_regions_overlay(img, masked_img_hair) # overlay on image
+            cv2.imwrite('../dumps/example_mediapipe_hair_eye_overlay.png', extracted_img_2)
+            with torch.no_grad():
+                # L_t = to_tensor(Image.fromarray(cv2.resize(left_eye, (128, 128)))).unsqueeze(0)
+                # R_t = to_tensor(Image.fromarray(cv2.resize(right_eye, (128, 128)))).unsqueeze(0)
+                # H_t = to_tensor(Image.fromarray(cv2.resize(extracted_img, (128, 128)))).unsqueeze(0)
+                L_t = to_tensor(Image.fromarray(cv2.resize(left_eye, (18, 18)))).unsqueeze(0)
+                R_t = to_tensor(Image.fromarray(cv2.resize(right_eye, (18, 18)))).unsqueeze(0)
+                H_t = to_tensor(Image.fromarray(cv2.resize(extracted_img, (128, 128)))).unsqueeze(0)
+                # E = torch.cat([mobilenet_v3_rep(L_t), mobilenet_v3_rep(R_t), mobilenet_v3_rep(H_t)], dim=1)
+                # E = torch.cat([mobilenet_v3_rep(L_t), mobilenet_v3_rep(R_t), mobilenet_v3_rep(H_t)], dim=1)
+                E = torch.cat([resnet_50(L_t).view(1, -1), resnet_50(R_t).view(1, -1), resnet_50(H_t).view(1, -1)], dim=1)
+                E = torch.nn.functional.normalize(E, p = 2, dim=1).squeeze(0).numpy()
+                return E
             
 
-if __name__ == "__main__":
-    if path:
-        # detect_haarcascade(path)
-        detect_mediapipe(path)
+# if __name__ == "__main__":
+#     if path:
+#         # detect_haarcascade(path)
+#         detect_mediapipe(path)
