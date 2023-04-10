@@ -124,7 +124,7 @@ class NvgnetFace(nn.Module):
         return mean_loss
 
 
-    def train(self, train_loader, val_loader):
+    def data_train(self, train_loader, val_loader):
         curr_loss = torch.inf
         for epoch in range(self.args.epoch):
             for images,_ in tqdm(train_loader):

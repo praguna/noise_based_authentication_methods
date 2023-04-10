@@ -62,12 +62,12 @@ if __name__ == '__main__':
     # logs inside the next function
     nvgNetFace = NvgnetFace(args=args).to(device)
     # load if required
-    # file = f'/home2/praguna.manvi/plg_models/model_{args.lr}_{args.batch_size}.pt'
-    # nvgNetFace.load_state_dict(torch.load(file))
+    file = f'/home2/praguna.manvi/plg_models/model_{args.lr}_{args.batch_size}.pt'
+    nvgNetFace.load_state_dict(torch.load(file))
     # for n, p in nvgNetFace.named_parameters():
     #     print(n, p.requires_grad)
     ## public training
-    nvgNetFace.train(data_loader, val_loader)
+    nvgNetFace.data_train(data_loader, val_loader)
     wandb.finish()
     ## private training using DP-ADAM / DP-SGD
     # sys.setrecursionlimit(100000)
