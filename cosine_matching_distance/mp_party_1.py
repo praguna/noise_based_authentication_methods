@@ -19,10 +19,10 @@ t_size = i_size + d_size
 
 def get_Random_X(n = 512, zeros = False):
      # example array on b.s
-     X = np.random.randn(n)
-     X = X / np.linalg.norm(X, 2)
+     X = np.zeros(n)
+    #  X = X / np.linalg.norm(X, 2)
      # print(X)
-     if zeros : X = np.zeros(n)
+     if zeros : X = np.ones(n) /  np.linalg.norm(np.ones(n), 2)
 
      # R = np.zeros((200, ))
      Arr1_t = []
@@ -43,20 +43,35 @@ def runcode(p):
 if __name__ == "__main__":
     start = 'INFO:root:['
     call_back = bin_2_float_call_back(i_size * 2 , d_size * 2) # to get the float answer
-    for _ in tqdm.tqdm(range(20)): 
+    for _ in tqdm.tqdm(range(10)): 
      try:
         subprocess.Popen(shlex.split(f'rm P1.log'))
-        N = np.zeros((200,))
-        N[0 : 30] = 1
-        X = get_Random_X(512, False)
+        N = np.zeros((4000,))
+        N[0 : 2000] = 1
+        X = get_Random_X(32, True)
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client.connect(('0.0.0.0', int(argv[1]))) 
         client.send(bytes('-', encoding="utf-8"))
         client.recv(8096).decode('utf-8')
         bNAuth = BNAuth(X, N, R = R, party_type = Party.P1, socket = client, call_back = call_back)
+        # bNAuth.precompute_octets()
+        noise = True
+        for _ in range(5):
+            # error correction
+            s = time()
+            d = bNAuth.perform_secure_match(size=t_size, noise = False)
+            e = time()
+            print(e-s)
+            if abs(d - 0.98876953125) < 1e-5:
+                noise = False
+                break
+            bNAuth.selected_octect_index = []
+        d = bNAuth.perform_secure_match(size=t_size, noise = noise) #one last time
+        bNAuth.X = get_Random_X(512, False)
+        bNAuth.X1 = None #distribute inputs
         bNAuth.precompute_octets()
         P = [3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007] #has to be ordered
-        bNAuth.save(P)
+        bNAuth.save(P, noise)
         # continue
         for p in P: runcode(p)
         s = time()

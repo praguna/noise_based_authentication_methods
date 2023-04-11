@@ -52,10 +52,11 @@ if __name__ == "__main__":
           #hard-coding noise
           # call_back = bin_2_float_call_back(i_size * 2 , d_size * 2) # to get the float answer
           call_back = None
+          noise = None
           bNAuth = BNAuth(X, np.zeros(200), party_type = Party.P2, socket = conn, call_back = call_back)
-          if call_back is None: bNAuth.load(int(argv[1])) #replace with other values
+          if call_back is None: noise = bNAuth.load(int(argv[1])) #replace with other values
           s = time()
-          d = bNAuth.perform_secure_match(size=t_size)
+          d = bNAuth.perform_secure_match(size=t_size, noise=noise)
           e = time()
           if not call_back: 
           #     with open('out.txt', 'w+') as f: f.writelines(str(d.astype(np.int8)) + ' ' + argv[1]) 

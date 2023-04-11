@@ -23,6 +23,7 @@ def get_Random_X(n = 512):
      X = np.random.randn(n)
      X = X / np.linalg.norm(X, 2)
      # print(X)
+     X = np.ones(n) /  np.linalg.norm(np.ones(n), 2)
 
      # R = np.zeros((200, ))
      Arr1_t = []
@@ -63,12 +64,25 @@ if __name__ == "__main__":
     while True:
        try:
             # accept connection 
-            I = get_Random_X(512)
+            I = get_Random_X(32)
             conn, addr = serv.accept()
             mode = conn.recv(8096).decode('utf-8')
             conn.send(bytes('-', encoding="utf-8"))
-            bNAuth = BNAuth(I, np.zeros(200), party_type = Party.P2, socket = conn, call_back = call_back)
+            bNAuth = BNAuth(I, np.zeros(4000), party_type = Party.P2, socket = conn, call_back = call_back)
+            # bNAuth.precompute_octets()
+            # error correction for a zero vector
+            noise = True
+            for _ in range(5):
+                r = bNAuth.perform_secure_match(size = t_size, noise = False)
+                if abs(r - 0.98876953125) < 1e-5:
+                    noise = False
+                    break
+                bNAuth.selected_octect_index = []
+            d = bNAuth.perform_secure_match(size=t_size, noise = noise) #one last time
+            bNAuth.X = get_Random_X(512)
+            bNAuth.X1 = None #distribute inputs
             bNAuth.precompute_octets()
+            # continue
             bNAuth.save(P)
             # continue
             p = conn.recv(8096).decode('utf-8')
@@ -90,6 +104,7 @@ if __name__ == "__main__":
          
         
        except Exception as e: 
+           raise e
            print('Error mp : ',e)
            for p in P: teardown(p)
            for p in P: startup(p)

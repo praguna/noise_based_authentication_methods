@@ -245,7 +245,7 @@ class BNAuth(object):
         combined computation phase for independent computation
         '''
         def get_triplet(octect):
-            a1, b1, c1 = octect[2] ^ octect[3] , (octect[1] ^ octect[3]) , octect[3] if not noise else  octect[0] ^ octect[1] ^ octect[2]
+            a1, b1, c1 = octect[2] ^ octect[3] , octect[1] ^ octect[3] , octect[3] if not noise else  octect[0] ^ octect[1] ^ octect[2]
             return [a1, b1, c1]
 
         def get_xors_to_send(a1, b1, p):
@@ -417,7 +417,7 @@ class BNAuth(object):
         
         final_sum = partial_sums[0]
         for i in range(1, len(partial_sums)):
-            final_sum = self.add_2_numbers(final_sum, partial_sums[i], size * 2)
+            final_sum = self.add_2_numbers(final_sum, partial_sums[i], size * 2, noise)
 
         return final_sum
     
@@ -473,7 +473,7 @@ class BNAuth(object):
                 self.socket.sendall(struct.pack('?', True))
         
         # select random octets
-        self.selected_octets = self.octets[self.fetch_octect_bulk(batch_size=50000)]
+        self.selected_octets = self.octets[self.fetch_octect_bulk(batch_size=2000)]
         
         # perform cosine distance
         d1 = self.cosine_distance(size, noise)
@@ -497,22 +497,27 @@ class BNAuth(object):
         '''
         performs distillation , preprocessing and distribution of vectors
         '''
-        self.octets = self.preprocess() 
-        self.X1, _ = self.create_distributed_vectors(self.X)
-        self.Y1 =  np.array(self.fetch_distributed_vector())
-        if self.party_type == Party.P2: self.Y1, self.X1 = self.X1, self.Y1
+        if len(self.octets) == 0:
+            self.octets = self.preprocess() 
+
+        # distribute and recieve X,Y as X1, Y1
+        if self.X1 is None or self.Y1 is None:
+            self.X1, _ = self.create_distributed_vectors(self.X)
+            self.Y1 =  np.array(self.fetch_distributed_vector())
+            if self.party_type == Party.P2: self.Y1, self.X1 = self.X1, self.Y1
 
         # perform distillation
         while len(self.selected_octect_index) == 0:
             self.selected_octect_index += self.perform_distillation(self.X1, self.Y1)
         
-        # distribute R as R1 or R2
-        if self.party_type == Party.P1: 
-            self.R1,_ = self.create_distributed_vectors(self.R, 'R2')
-            self.socket.recvmsg(1)[0]
-        else: 
-            self.R1 = self.recieve_from_peer()['R2']
-            self.socket.sendall(struct.pack('?', True))        
+        if self.R1 is None :
+            # distribute R as R1 or R2
+            if self.party_type == Party.P1: 
+                self.R1,_ = self.create_distributed_vectors(self.R, 'R2')
+                self.socket.recvmsg(1)[0]
+            else: 
+                self.R1 = self.recieve_from_peer()['R2']
+                self.socket.sendall(struct.pack('?', True))       
 
 
     def perform_secure_match_parallel_inputs(self, sums = [], size = 16, noise = False):
@@ -529,9 +534,9 @@ class BNAuth(object):
         d = np.logical_xor(final_sum, d2)
         return self.call_back(d)
 
-    def save(self, ports = []):
+    def save(self, ports = [], noise = False):
         with open(f'{self.party_type}.pk' , 'wb') as f: 
-            obj = {'octets' : self.octets, 'selected_octect_index' : self.selected_octect_index}
+            obj = {'octets' : self.octets, 'selected_octect_index' : self.selected_octect_index, 'noise' : noise}
             batch_size = len(self.X) // len(ports)
             for i, p in enumerate(ports):
                 obj[f'{p}_X1'] = self.X1[batch_size * i : batch_size * (i+1)]
@@ -546,3 +551,4 @@ class BNAuth(object):
         obj['Y1'] = obj[f'{port}_Y1']
         obj['R1'] = obj[f'{port}_R1']
         self.set_distributed_inputs(obj)
+        return obj['noise']

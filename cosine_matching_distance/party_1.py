@@ -51,10 +51,11 @@ if __name__ == "__main__":
           #hard-coding noise
           # call_back = bin_2_float_call_back(i_size * 2 , d_size * 2) # to get the float answer
           call_back = None
+          noise = None
           bNAuth = BNAuth(X, N, R = R, party_type = Party.P1, socket = client, call_back = call_back)
-          if call_back is None: bNAuth.load(int(argv[1])) #replace with other values
+          if call_back is None: noise = bNAuth.load(int(argv[1])) #replace with other values
           s = time()
-          d1 = bNAuth.perform_secure_match(size=t_size)
+          d1 = bNAuth.perform_secure_match(size=t_size, noise=noise)
           e = time()
           if not call_back:
               logging.info(f'{d1.astype(np.int8)} | {int(argv[1])} | {e-s}') # return to console 
