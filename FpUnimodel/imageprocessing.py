@@ -360,7 +360,7 @@ def random_obfuscation_mmap(mmap, block_size, indices):
     return mmap
 
 
-def preprocess_test(images):
+def preprocess_test(images, add_noise = False):
     # Load images first if they are file paths
     if type(images[0]) == str:
         image_paths = images
@@ -370,6 +370,11 @@ def preprocess_test(images):
         for i, image_path in enumerate(image_paths):
             #img = misc.imread(image_path, mode=mode)
             img = cv2.imread(image_path, 0)
+            if add_noise: 
+                if np.random.random() < 0.4:
+                    img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+                else:
+                    img = cv2.blur(img, (3,3)) 
             #img = cv2.equalizeHist(img)
             if (img.shape[0] != 512 or img.shape[1] != 512):
               img = pad_image(img, 512, 512)
