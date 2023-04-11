@@ -72,13 +72,13 @@ if __name__ == "__main__":
             # bNAuth.precompute_octets()
             # error correction for a zero vector
             noise = True
-            for _ in range(5):
+            for _ in range(1):
                 r = bNAuth.perform_secure_match(size = t_size, noise = False)
                 if abs(r - 0.98876953125) < 1e-5:
                     noise = False
                     break
                 bNAuth.selected_octect_index = []
-            d = bNAuth.perform_secure_match(size=t_size, noise = noise) #one last time
+            # d = bNAuth.perform_secure_match(size=t_size, noise = noise) #one last time
             bNAuth.X = get_Random_X(512)
             bNAuth.X1 = None #distribute inputs
             bNAuth.precompute_octets()
@@ -104,7 +104,7 @@ if __name__ == "__main__":
          
         
        except Exception as e: 
-           raise e
+        #    raise e
            print('Error mp : ',e)
            for p in P: teardown(p)
            for p in P: startup(p)

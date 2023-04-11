@@ -41,7 +41,9 @@ if __name__ == "__main__":
     for _ in range(1): 
      try:
           client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+          client.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
           client.connect(('0.0.0.0', int(argv[1]))) 
+          # client.settimeout(100)
           client.send(bytes('-', encoding="utf-8"))
 
           # N = np.array([np.random.randint(0, 2) for _ in range(200)])

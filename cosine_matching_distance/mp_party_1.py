@@ -50,13 +50,15 @@ if __name__ == "__main__":
         N[0 : 2000] = 1
         X = get_Random_X(32, True)
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        client.settimeout(100)
         client.connect(('0.0.0.0', int(argv[1]))) 
         client.send(bytes('-', encoding="utf-8"))
         client.recv(8096).decode('utf-8')
         bNAuth = BNAuth(X, N, R = R, party_type = Party.P1, socket = client, call_back = call_back)
         # bNAuth.precompute_octets()
         noise = True
-        for _ in range(5):
+        for _ in range(1):
             # error correction
             s = time()
             d = bNAuth.perform_secure_match(size=t_size, noise = False)
@@ -66,7 +68,7 @@ if __name__ == "__main__":
                 noise = False
                 break
             bNAuth.selected_octect_index = []
-        d = bNAuth.perform_secure_match(size=t_size, noise = noise) #one last time
+        # d = bNAuth.perform_secure_match(size=t_size, noise = noise) #one last time
         bNAuth.X = get_Random_X(512, False)
         bNAuth.X1 = None #distribute inputs
         bNAuth.precompute_octets()
