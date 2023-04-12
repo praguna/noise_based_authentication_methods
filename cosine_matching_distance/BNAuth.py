@@ -449,7 +449,6 @@ class BNAuth(object):
         # assert np.linalg.norm(self.X , 2) == 1 has to be true 
         
         # preprocessing octets ignore for now
-
         if len(self.octets) == 0:
             self.octets = self.preprocess() 
 

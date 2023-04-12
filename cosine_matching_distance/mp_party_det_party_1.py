@@ -8,6 +8,12 @@ from sys import argv
 from mp import *
 import os
 
+### Dataset / Modality specific import
+import mp_party_1_soco as mp_det
+#####
+M = {'local' : [], 'protocol' : []}
+NM = {'local' : [], 'protocol' : []}
+
 key_default = 'key_5400'
 
 with open('random_client_key.json', 'r') as f:
@@ -36,6 +42,28 @@ def get_Random_X(n = 512, zeros = False):
      X = np.array(Arr1_t).astype(np.int8)
      return X
 
+def get_X(V):
+     Arr1_t = []
+     i = 0
+     for a in V:
+          x = float_2_complement_decimal(i_size , d_size, a)
+          arr1 = list(np.logical_xor(np.array([a for a in x], dtype=np.int8), R[i * t_size : t_size * (i+1)]))
+          Arr1_t.extend(arr1)
+          i+=1
+
+     return np.array(Arr1_t)
+
+def get_X_local(V):
+     Arr1_t = []
+     i = 0
+     for a in V:
+          x = float_2_complement_decimal(i_size , d_size, a)
+          arr1 = np.logical_xor(np.array([a for a in x], dtype=np.int8), R[i * t_size : t_size * (i+1)])
+          Arr1_t.append(arr1)
+          i+=1
+
+     return np.array(Arr1_t)
+
 def runcode(p):
     print(f'authenticating at a secure parallel process at port : {p}')
     subprocess.Popen(shlex.split(f'python party_1.py {str(p)} &'))
@@ -43,17 +71,28 @@ def runcode(p):
 if __name__ == "__main__":
     start = 'INFO:root:['
     call_back = bin_2_float_call_back(i_size * 2 , d_size * 2) # to get the float answer
-    for _ in tqdm.tqdm(range(10)): 
+    # for _ in tqdm.tqdm(range(10)): #base case
+    for a1, b1, c1, a, b in tqdm.tqdm(mp_det.soco_example_generator()):
      try:
+        F0 = mp_det.extract_feature([a1]).flatten()
+        F1 = mp_det.extract_feature([b1]).flatten()
+        Arr1_t = get_X_local(F0)
+        Arr2_t = get_X_local(F1)
+        C_t = cosine_distance(Arr1_t, Arr2_t, size=t_size, R = R)
+        C_d = decimal_2_complement_float(i_size * 2 , d_size * 2, ''.join([str(e) for e in C_t]))
+        print(C_d, F0 @ F1)
         subprocess.Popen(shlex.split(f'rm P1.log'))
-        N = np.zeros((4000,))
-        N[0 : 2000] = 1
+        # N = np.zeros((200,)) # base case
+        # N[0 : 150] = 1 # base case
+        N = mp_det.extract_noise([b])
+
         X = get_Random_X(32, True)
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         client.settimeout(100)
         client.connect(('0.0.0.0', int(argv[1]))) 
-        client.send(bytes('-', encoding="utf-8"))
+        # client.send(bytes(f'-', encoding="utf-8")) #send files here 
+        client.send(bytes(f'{b1} {b}', encoding="utf-8")) #send files here 
         client.recv(8096).decode('utf-8')
         bNAuth = BNAuth(X, N, R = R, party_type = Party.P1, socket = client, call_back = call_back)
         # bNAuth.precompute_octets()
@@ -61,17 +100,20 @@ if __name__ == "__main__":
         for _ in range(1):
             # error correction
             s = time()
+            bNAuth.selected_octect_index = []        
             d = bNAuth.perform_secure_match(size=t_size, noise = False)
             e = time()
             print(e-s)
             if abs(d - 0.98876953125) < 1e-5:
                 noise = False
                 break
-            bNAuth.selected_octect_index = []
         # d = bNAuth.perform_secure_match(size=t_size, noise = noise) #one last time
-        bNAuth.X = get_Random_X(512, False)
+        # bNAuth.X = get_Random_X(512, True) # base case
+        F0 = mp_det.extract_feature([a1]).flatten()
+        bNAuth.X = get_X(F0)
         bNAuth.X1 = None #distribute inputs
         bNAuth.precompute_octets()
+        print(bNAuth.octets[bNAuth.selected_octect_index], noise)
         P = [3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007] #has to be ordered
         bNAuth.save(P, noise)
         # continue
@@ -108,12 +150,31 @@ if __name__ == "__main__":
         # bNAuth.save()
         # bNAuth.load()
         d = bNAuth.perform_secure_match_parallel_inputs(X, t_size, noise)
+        assert d == C_d, print(bNAuth.octets[bNAuth.selected_octect_index], noise)
+        # exit(0)
         e = time()
         print(e - s)
-        print(d)
+
+        # dataset specific parts
+        F = mp_det.extract_feature([a1, b1])
+        # print(F[0, :] @ F0)
+        # exit(0)
+        d1 = F[0, :] @ F[1, :]
         
-          
+        print(d, d1, c1)
+        if c1.strip() == '1': 
+            M['local'].append(float(d1))
+            M['protocol'].append(float(d))
+        else:
+            NM['local'].append(float(d1))
+            NM['protocol'].append(float(d))
+    
+            
      except Exception as e: 
         #  raise e
          print('Error : ', e, 'dropping this')
      finally:  client.close()
+
+import json
+with open('soco_scores.json', 'w+') as f:
+    json.dump({'mated' : M , 'non-mated' : NM}, f)
