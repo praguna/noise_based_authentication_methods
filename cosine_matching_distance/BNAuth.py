@@ -551,3 +551,75 @@ class BNAuth(object):
         obj['R1'] = obj[f'{port}_R1']
         self.set_distributed_inputs(obj)
         return obj['noise']
+
+
+    def perform_post_distillation(self):
+        '''
+        get the final octect after elimination
+        '''
+        
+        assert len(self.octets) >= 0
+        if len(self.octets) == 1 : return self.octets[0]
+
+        assert len(self.selected_octect_index) > 0
+
+
+        def P1():
+            octect_set = {i : e  for i, e in enumerate(self.octets) if i not in self.selected_octect_index}
+            octect_set_1 = {i : e  for i, e in enumerate(self.octets) if i in self.selected_octect_index}
+            while len(self.selected_octect_index) < 15:
+                if len(octect_set) < 2: break
+                # send / fetch indices
+                j, match = 0 , True
+                indices0 = list(np.random.choice(list(octect_set.keys()), 1))
+                indices1 = list(np.random.choice(list(octect_set_1.keys()), 1))
+                indices = indices0 + indices1
+                self.send_to_peer(json.dumps({'indices' : serialize_nd_array(indices)}))
+                idx = np.random.choice(self.d, self.num_dist, False)
+                while j < self.num_dist and match:
+                    # ind = np.random.choice(self.d, 1)
+                    ind = [idx[j]]
+                    x, y = self.X1[ind], self.Y1[ind]
+                    self.send_to_peer(json.dumps({'pos' : serialize_nd_array(ind)}))
+                    A = self.perform_computation_phase_v2(octect_set[indices[0]],x, y)
+                    B = self.perform_computation_phase_v2(octect_set_1[indices[-1]],x, y)
+                    z1 = A ^ B
+                    # fetch/send z2 / z1 from the other party
+                    self.send_to_peer(json.dumps({'z2' : serialize_nd_array(z1)}))
+                    z2 = self.recieve_from_peer()['z2']
+                    match = z1 == z2
+                    j+=1
+                if match: # compare z1 and z2
+                    # del_idx = np.random.choice(indices, 1)
+                    # self.send_to_peer(json.dumps({'del_idx' : serialize_nd_array(del_idx)}))
+                    self.selected_octect_index.append(indices[0])
+                octect_set = {i : e  for i, e in enumerate(self.octets) if i not in self.selected_octect_index}
+                octect_set_1 = {i : e  for i, e in enumerate(self.octets) if i in self.selected_octect_index}
+            return sorted(list(octect_set.keys()))
+        
+        def P2():
+            octect_set = {i : e  for i, e in enumerate(self.octets) if i not in self.selected_octect_index}
+            octect_set_1 = {i : e  for i, e in enumerate(self.octets) if i in self.selected_octect_index}
+            while len(self.selected_octect_index) < 15:
+                if len(octect_set) < 2: break
+                j, match = 0 , True
+                indices = self.recieve_from_peer()['indices']
+                while j < self.num_dist and match:
+                    ind = self.recieve_from_peer()['pos']
+                    x, y = self.X1[ind], self.Y1[ind]
+                    A = self.perform_computation_phase_v2(octect_set[indices[0]], x, y)
+                    B = self.perform_computation_phase_v2(octect_set_1[indices[-1]], x, y)
+                    z1 = A ^ B
+                    # fetch/send z2 / z1 from the other party
+                    self.send_to_peer(json.dumps({'z2' : serialize_nd_array(z1)}))
+                    z2 = self.recieve_from_peer()['z2']
+                    match = z1 == z2
+                    j+=1
+                if match: # compare z1 and z2
+                    self.selected_octect_index.append(indices[0])
+                
+                octect_set = {i : e  for i, e in enumerate(self.octets) if i not in self.selected_octect_index}
+                octect_set_1 = {i : e  for i, e in enumerate(self.octets) if i in self.selected_octect_index}
+            return sorted(list(octect_set.keys()))
+        
+        return P1() if self.party_type == Party.P1 else P2()
