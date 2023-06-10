@@ -52,6 +52,7 @@ def teardown(p):
 if __name__ == "__main__":
     start = 'INFO:root:['
     serv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    serv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     serv.bind(('0.0.0.0', int(argv[1])))
     serv.listen()
     print(f'server started at {argv[1]}!!!')
@@ -71,14 +72,14 @@ if __name__ == "__main__":
             bNAuth = BNAuth(I, np.zeros(4000), party_type = Party.P2, socket = conn, call_back = call_back)
             # bNAuth.precompute_octets()
             # error correction for a zero vector
-            noise = True
-            for _ in range(1):
-                r = bNAuth.perform_secure_match(size = t_size, noise = False)
-                if abs(r - 0.98876953125) < 1e-5:
-                    noise = False
-                    break
-                bNAuth.selected_octect_index = []
-            # d = bNAuth.perform_secure_match(size=t_size, noise = noise) #one last time
+            noise = False
+            # for _ in range(1):
+            #     r = bNAuth.perform_secure_match(size = t_size, noise = False)
+            #     if abs(r - 0.98876953125) < 1e-5:
+            #         noise = False
+            #         break
+            #     bNAuth.selected_octect_index = []
+            # # d = bNAuth.perform_secure_match(size=t_size, noise = noise) #one last time
             bNAuth.X = get_Random_X(512)
             bNAuth.X1 = None #distribute inputs
             bNAuth.precompute_octets()

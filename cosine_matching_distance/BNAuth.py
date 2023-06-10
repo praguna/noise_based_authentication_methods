@@ -4,10 +4,14 @@ import numpy as np
 import socket, json, tqdm
 from collections import deque
 import struct, gzip, pickle as pk
+import itertools
+import random
 
 # setting the seed 
 # np.random.seed(42)
 oc1 , oc2 =  np.array([0, 0, 0, 0]), np.array([0, 0, 0, 0])
+states = [[0,1], [0,1], [0,1], [0,1]]
+possible_octets = np.array([list(e) for e in list(itertools.product(*states))])
 class BNAuth(object):
     '''
     Implementation of Biometric matching with noise without exchanging templates
@@ -42,6 +46,7 @@ class BNAuth(object):
         self.X1 = None
         self.Y1 = None
         self.R1 = None
+        self.and_gates = 0
         assert self.m > 0
     
 
@@ -135,7 +140,7 @@ class BNAuth(object):
         '''
         creates m octects in the party
         '''
-        return np.array([self.get_masked_bit_quad() for _ in range(self.m)])
+        return np.array([self.get_masked_bit_quad() for _ in tqdm.tqdm(range(self.m))])
         
 
     def create_distributed_vectors(self, X, name = 'Y1'):
@@ -237,6 +242,7 @@ class BNAuth(object):
         XA = x1_xor_a1 ^ x2_xor_a2
         YB = y1_xor_b1 ^ y2_xor_b2
         Z =  (XA & YB) ^ (w & YB) ^ (v & XA) ^ c1  if self.party_type == Party.P1 else (w & YB) ^ (v & XA) ^ c1 
+        self.and_gates+=1
         return Z
 
     
@@ -267,8 +273,11 @@ class BNAuth(object):
             P.extend([x1, x2])
         num = '?'*len(P)
         self.socket.sendall(struct.pack(num, *P))
-        s = self.socket.recvmsg(len(P))[0]
+        s = b''
+        while len(s) < len(P):
+            s += self.socket.recvmsg(len(P))[0]
         R = struct.unpack(num,s)
+        self.and_gates+=len(octects)
         return [get_Z((R[i], R[i+1]) , A[i // 2]) for i in range(0, len(R), 2)]
     
     def calculate_sum(self, W1, W2):
@@ -351,8 +360,12 @@ class BNAuth(object):
 
     def increase_oc_count(self, inc):
         self.oc_count += inc
-        if self.oc_count > len(self.selected_octets): 
-            self.selected_octets = self.octets[self.fetch_octect_bulk(batch_size=50000)]
+        if self.oc_count >= len(self.selected_octets): 
+            st = time()
+            # self.selected_octets = self.octets[self.fetch_octect_bulk(batch_size=30000)]
+            self.perform_random_octet_generation()
+            self.selected_octets = possible_octets[self.selected_octect_index]
+            # print(time() - st, len(self.selected_octets))
             self.oc_count = inc - 1
 
     ###################################### Cosine Distance Utilities #########################################
@@ -472,10 +485,13 @@ class BNAuth(object):
                 self.socket.sendall(struct.pack('?', True))
         
         # select random octets
-        self.selected_octets = self.octets[self.fetch_octect_bulk(batch_size=2000)]
+        # self.selected_octets = self.octets[self.fetch_octect_bulk(batch_size=2000)]
+        self.perform_random_octet_generation(2000)
+        self.selected_octets = possible_octets[self.selected_octect_index]
         
         # perform cosine distance
         d1 = self.cosine_distance(size, noise)
+        # print('intermediate',self.and_gates)
         if self.call_back is None: return d1
         self.send_to_peer(json.dumps({'d2' : serialize_nd_array(d1)}))
         d2 = self.recieve_from_peer()['d2']
@@ -517,13 +533,19 @@ class BNAuth(object):
             else: 
                 self.R1 = self.recieve_from_peer()['R2']
                 self.socket.sendall(struct.pack('?', True))       
+        
+        self.perform_post_distillation()
+        # self.perform_random_octet_generation()
+        # exit(0)
 
 
     def perform_secure_match_parallel_inputs(self, sums = [], size = 16, noise = False):
         '''
         take x1, x2, x3 .... xN computed partial sums in parallel and add them together 
         '''
-        self.selected_octets = self.octets[self.fetch_octect_bulk(batch_size=5000)]
+        # self.selected_octets = self.octets[self.fetch_octect_bulk(batch_size=5000)]
+        self.perform_random_octet_generation(5000)
+        self.selected_octets = possible_octets[self.selected_octect_index]
         final_sum = sums[0] 
         for i in range(1, len(sums)):
             final_sum = self.add_2_numbers(sums[i], final_sum, size * 2, noise)
@@ -531,6 +553,7 @@ class BNAuth(object):
         self.send_to_peer(json.dumps({'d2' : serialize_nd_array(final_sum)}))
         d2 = self.recieve_from_peer()['d2']
         d = np.logical_xor(final_sum, d2)
+        # print("Combining  : ",self.and_gates)
         return self.call_back(d)
 
     def save(self, ports = [], noise = False):
@@ -623,3 +646,78 @@ class BNAuth(object):
             return sorted(list(octect_set.keys()))
         
         return P1() if self.party_type == Party.P1 else P2()
+
+
+    def perform_computation_phase_v4_preprocess(self, octects, pair, noise = False):
+        '''
+        combined computation phase for independent computation
+        '''
+
+        def get_Z(P, Q):
+            x2_xor_a2, y2_xor_b2 = P
+            w, v, c1, x1_xor_a1, y1_xor_b1 = Q
+            XA = x1_xor_a1 ^ x2_xor_a2
+            YB = y1_xor_b1 ^ y2_xor_b2
+            Z =  (XA & YB) ^ (w & YB) ^ (v & XA) ^ c1  if self.party_type == Party.P1 else (w & YB) ^ (v & XA) ^ c1 
+            return Z
+
+        A, P = [], []
+        p = pair
+        # x = time()
+        for octect in octects:
+            a1, b1, c1 = octect[2] ^ octect[3] , octect[1] ^ octect[3] , octect[3] if not noise else  octect[0] ^ octect[1] ^ octect[2]
+            x1, x2 = a1^p[0] , b1^p[1]
+            A.append((p[0], p[1], c1, x1, x2))
+            P.extend([x1, x2])
+        # print(time()- x)
+        num = '?'*len(P)
+        msg = struct.pack(num, *P)
+        # msg = gzip.compress(struct.pack(num, *P), 2)
+        self.socket.sendall(msg)
+        s = b''
+        while len(s) < len(P):
+            s += self.socket.recvmsg(len(P))[0]
+        # s = gzip.decompress(s)
+        # print(len(msg), len(num), len(P), len(s))
+        R = struct.unpack(num,s)
+        # self.and_gates+=len(octects)
+        # print(time()- x)
+        res = [get_Z((R[i], R[i+1]) , A[i // 2]) for i in range(0, len(R), 2)]
+        # print('l', time()- x)
+        return res
+
+    def perform_random_octet_generation(self, n = 50000):
+            # st = time()
+            if self.party_type == Party.P1: 
+                index = np.random.choice(self.selected_octect_index, 1)
+                self.send_to_peer(json.dumps({'indices' : serialize_nd_array(index)}))
+            else: 
+                index = self.recieve_from_peer()['indices']
+            
+            random_octet = self.octets[index][0]
+            # use this random octet to generate k random octet selection which are purely random
+            # octets_r = [[np.random.choice([0,1], 1)[0] for _ in range(4)] for _ in range(506808)]
+            # print('b0',time() - st)
+            # octets_idx_r = np.array([np.random.randint(0, 16) for _ in range(n)])
+            octets_idx_r = np.array([int(random.random() * 16) for _ in range(n)])
+            # print('b1',time() - st)
+            z = self.perform_computation_phase_v4_preprocess([random_octet] + list(possible_octets[octets_idx_r]), [np.random.randint(0,2) , np.random.randint(0,2)])
+            z_xor = list(np.logical_xor(np.array(z[0]), z[1:]).astype(np.int8))
+            num = '?' * len(z_xor)
+            msg = struct.pack(num, *z_xor)
+            # print(len(msg))
+            # send (z xor r1) (x1 , y1)
+            self.socket.sendall(msg)
+            s = b''
+            while len(s) < len(z_xor):
+                s += self.socket.recvmsg(len(z_xor))[0]
+            R = struct.unpack(num,s)
+            e = np.array(R).astype(np.int8) == z_xor
+            # print(octets[z])
+            # print(np.argwhere(z))
+            # self.octets = possible_octets[octets_idx_r]
+            # print(time() - st)
+            self.selected_octect_index = octets_idx_r[np.argwhere(e).ravel()]
+            # print(time() - st, '>')
+            # print(len(self.selected_octect_index), self.selected_octect_index, possible_octets[self.selected_octect_index][:10], time()-st)
+            # exit(0)

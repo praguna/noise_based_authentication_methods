@@ -22,7 +22,6 @@ def get_Random_X(n = 512, zeros = False):
      # example array on b.s
      X = np.random.randn(n)
      X = X / np.linalg.norm(X, 2)
-     # print(X)
      if zeros : X = np.zeros(n)
 
      # R = np.zeros((200, ))
@@ -51,8 +50,8 @@ if __name__ == "__main__":
           N[0 : 30] = 1
           X = get_Random_X(64, False)
           #hard-coding noise
-          # call_back = bin_2_float_call_back(i_size * 2 , d_size * 2) # to get the float answer
-          call_back = None
+          call_back = bin_2_float_call_back(i_size * 2 , d_size * 2) # to get the float answer
+          # call_back = None
           noise = None
           bNAuth = BNAuth(X, N, R = R, party_type = Party.P1, socket = client, call_back = call_back)
           if call_back is None: noise = bNAuth.load(int(argv[1])) #replace with other values
@@ -71,10 +70,11 @@ if __name__ == "__main__":
           bNAuth1.octets, bNAuth1.selected_octect_index = bNAuth.octets, bNAuth.selected_octect_index # sanity check
           d2 = bNAuth1.perform_secure_match(size=t_size)
           d_x = abs(d1) + abs(d2)
-          if d_x == abs(d1) : print(d1)
+          if d_x == abs(d1) : print('res : ',d1)
           else: print('invalid octet set : ', d1)
           e = time()
           print(e - s, ' seconds')
      except Exception as e: 
+         raise e
          print(f'error at port : {argv[1]}', e)
      finally:  client.close()

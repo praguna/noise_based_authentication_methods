@@ -40,6 +40,7 @@ def get_Random_X(n = 512):
 
 if __name__ == "__main__":
     serv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    serv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     serv.bind(('0.0.0.0', int(argv[1])))
     serv.listen()
     print(f'server started at {argv[1]}!!!')
@@ -50,8 +51,8 @@ if __name__ == "__main__":
           mode = conn.recv(8096).decode('utf-8')
           if mode.find(':') != -1: b = True
           #hard-coding noise
-          # call_back = bin_2_float_call_back(i_size * 2 , d_size * 2) # to get the float answer
-          call_back = None
+          call_back = bin_2_float_call_back(i_size * 2 , d_size * 2) # to get the float answer
+          # call_back = None
           noise = None
           bNAuth = BNAuth(X, np.zeros(200), party_type = Party.P2, socket = conn, call_back = call_back)
           if call_back is None: noise = bNAuth.load(int(argv[1])) #replace with other values

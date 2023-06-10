@@ -43,32 +43,32 @@ def runcode(p):
 if __name__ == "__main__":
     start = 'INFO:root:['
     call_back = bin_2_float_call_back(i_size * 2 , d_size * 2) # to get the float answer
-    for _ in tqdm.tqdm(range(10)): 
+    for _ in tqdm.tqdm(range(1)): 
      try:
         subprocess.Popen(shlex.split(f'rm P1.log'))
         N = np.zeros((4000,))
-        N[0 : 2000] = 1
+        N[0 : 50] = 1
         X = get_Random_X(32, True)
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        client.settimeout(100)
+        # client.settimeout(100)
         client.connect(('0.0.0.0', int(argv[1]))) 
         client.send(bytes('-', encoding="utf-8"))
         client.recv(8096).decode('utf-8')
         bNAuth = BNAuth(X, N, R = R, party_type = Party.P1, socket = client, call_back = call_back)
         # bNAuth.precompute_octets()
-        noise = True
-        for _ in range(1):
-            # error correction
-            s = time()
-            d = bNAuth.perform_secure_match(size=t_size, noise = False)
-            e = time()
-            print(e-s)
-            if abs(d - 0.98876953125) < 1e-5:
-                noise = False
-                break
-            bNAuth.selected_octect_index = []
-        # d = bNAuth.perform_secure_match(size=t_size, noise = noise) #one last time
+        noise = False
+        # for _ in range(1):
+        #     # error correction
+        #     s = time()
+        #     d = bNAuth.perform_secure_match(size=t_size, noise = False)
+        #     e = time()
+        #     print(e-s)
+        #     if abs(d - 0.98876953125) < 1e-5:
+        #         noise = False
+        #         break
+        #     bNAuth.selected_octect_index = []
+        # # d = bNAuth.perform_secure_match(size=t_size, noise = noise) #one last time
         bNAuth.X = get_Random_X(512, False)
         bNAuth.X1 = None #distribute inputs
         bNAuth.precompute_octets()
@@ -114,6 +114,6 @@ if __name__ == "__main__":
         
           
      except Exception as e: 
-        #  raise e
+         raise e
          print('Error : ', e, 'dropping this')
      finally:  client.close()
