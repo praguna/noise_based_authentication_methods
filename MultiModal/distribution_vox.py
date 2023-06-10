@@ -15,6 +15,12 @@ def compute_distance(P1, P2):
     BE2 = circulent_binary_embedding.cbe_prediction(model, E2)
     return np.sum(np.logical_xor(BE1, BE2))/ len(E1)
 
+
+def compute_embedding(P1):
+    E1 = extract_speech_embeddings(P1)
+    BE1 = circulent_binary_embedding.cbe_prediction_with_opd(model, E1)
+    return BE1
+
 if __name__ == '__main__':
     
 
@@ -22,7 +28,7 @@ if __name__ == '__main__':
          lines = f.readlines()
 
     mated, non_mated = [] , []
-    for l in tqdm.tqdm(lines[-100 :] + lines[ :100]):
+    for l in tqdm.tqdm(lines[-3000 :] + lines[ :3000]):
         a, b, c  = l.split(' ')
         try:
             d = compute_distance(a.strip(), b.strip())
@@ -34,7 +40,8 @@ if __name__ == '__main__':
             print('error observed ..', a, b, c)
             continue
         
+    print(np.mean(mated), np.mean(non_mated))
     import json
-    with open('../dumps/voxceleb_dist', 'w+') as f:
+    with open('../dumps/voxceleb_dist_1', 'w+') as f:
         json.dump({'mated' : mated, 'non-mated' : non_mated}, f)
 

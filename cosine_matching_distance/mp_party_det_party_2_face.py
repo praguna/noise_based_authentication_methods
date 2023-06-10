@@ -9,7 +9,7 @@ from mp import *
 
 
 ### Dataset / Modality specific import
-import mp_party_1_soco as mp_det
+import mp_party_1_face as mp_det
 #####
 
 key_default = 'key_5400'

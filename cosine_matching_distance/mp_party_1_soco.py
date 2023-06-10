@@ -26,21 +26,21 @@ def soco_example_generator():
     with open('../FpUnimodel/soco_pairs_ids.txt' , 'r+') as f:
          lines = f.readlines()
 
-    for l in tqdm.tqdm( lines[ :100] + lines[-100 :]):
+    for l in tqdm.tqdm( lines[ :500] + lines[-500 :]):
         a1, b1, c1  = l.split(' ')
         a = corresponding_index(R+a1.strip())
         b = corresponding_index(R+b1.strip(), a)
         yield str(R+a1.strip()), str(R+b1.strip()), c1, str(a), str(b)
 
 def extract_noise(P):
-    I = imageprocessing.preprocess_test(P, False)
+    I = imageprocessing.preprocess_test([P], False)
     F_norm = distribution_soco.extract_embeddings(I)
     E1 = F_norm[0 , :]
     BE1 = circulent_binary_embedding.cbe_prediction_with_opd(distribution_soco.model, E1)
     return BE1
 
 def extract_feature(P):
-    I = imageprocessing.preprocess_test(P, False)
+    I = imageprocessing.preprocess_test([P], False)
     F_norm = distribution_soco.extract_embeddings(I)
     return F_norm[0:]
 

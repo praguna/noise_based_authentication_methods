@@ -244,6 +244,7 @@ class BNAuth(object):
         '''
         combined computation phase for independent computation
         '''
+        self.count += len(pairs) * 2
         def get_triplet(octect):
             a1, b1, c1 = octect[2] ^ octect[3] , octect[1] ^ octect[3] , octect[3] if not noise else  octect[0] ^ octect[1] ^ octect[2]
             return [a1, b1, c1]
@@ -267,7 +268,9 @@ class BNAuth(object):
             P.extend([x1, x2])
         num = '?'*len(P)
         self.socket.sendall(struct.pack(num, *P))
-        s = self.socket.recvmsg(len(P))[0]
+        s = b''
+        while len(s) < len(P):
+            s += self.socket.recvmsg(len(P))[0]
         R = struct.unpack(num,s)
         return [get_Z((R[i], R[i+1]) , A[i // 2]) for i in range(0, len(R), 2)]
     
@@ -357,12 +360,35 @@ class BNAuth(object):
 
     ###################################### Cosine Distance Utilities #########################################
 
-    def add_2_numbers(self, b1, b2, size = 16, noise = False):
+    def add_1(self, A, noise):
+            S, c = [self.secure_not(A[-1])], A[-1]
+            for x in reversed(A[:-1]): 
+                s = c ^ x
+                S.insert(0, s)
+                self.increase_oc_count(1)
+                c = self.perform_computation_phase_v3(self.selected_octets[self.oc_count], c, x, noise)
+            return S
+
+    def plain_text_2s_complement(self, P):
+            A = np.logical_not(P)
+            S, c = [np.logical_not(A[-1])], A[-1]
+            for x in reversed(A[:-1]): 
+                s = c ^ x
+                S.insert(0, s)
+                c = c & x
+            return S
+
+    def add_2_numbers(self, b1, b2, size = 16, noise = False, index = 0):
         '''add 2 binary numbers'''
         c = 0
         assert len(b1) == len(b2)
-        R = []
-        for i in range(len(b1)-1, -1, -1):
+        z, e = 2 + index, -1-index
+        if index > 0 : R = b1[e+1:]
+        else: R = []
+        self.increase_oc_count(1)
+        c = self.perform_computation_phase_v3(self.selected_octets[self.oc_count], b2[e], b1[e], noise)
+        R += [b1[e] ^  b2[e]]
+        for i in range(len(b1)-z, -1, -1):
             s = b1[i] ^  b2[i] ^  c
             R.insert(0, s)
             self.increase_oc_count(4)
@@ -398,8 +424,8 @@ class BNAuth(object):
             return L
         
         def add_1(A):
-            S, c = [], int(self.party_type == Party.P1)
-            for x in reversed(A): 
+            S, c = [self.secure_not(A[-1])], A[-1]
+            for x in reversed(A[:-1]): 
                 s = c ^ x
                 S.insert(0, s)
                 self.increase_oc_count(1)
@@ -461,7 +487,9 @@ class BNAuth(object):
         # perform distillation
         while len(self.selected_octect_index) == 0:
             self.selected_octect_index += self.perform_distillation(self.X1, self.Y1)
-        
+
+        self.perform_post_distillation()
+
         if self.R1 is None :
             # distribute R as R1 or R2
             if self.party_type == Party.P1: 
@@ -477,10 +505,29 @@ class BNAuth(object):
         # perform cosine distance
         d1 = self.cosine_distance(size, noise)
         if self.call_back is None: return d1
+        # self.send_to_peer(json.dumps({'d2' : serialize_nd_array(d1)}))
+        # d2 = self.recieve_from_peer()['d2']
+        # d = np.logical_xor(d1, d2)
+        # return self.call_back(d), 0
+        ### correction
+        n = 4 * int(np.log2(len(d1)))
+        W = [d1[0]] #initial sum
+        for e in d1[1 : ]:
+            v = e
+            for i in range(len(W)-1, -1, -1):
+                f = v ^ W[i]
+                self.increase_oc_count(1)
+                v = self.perform_computation_phase_v3(self.selected_octets[self.oc_count], W[i], v, noise)
+                W[i] = f
+            if len(W) < n: W.insert(0 , v) 
+        d1 = np.concatenate([d1, W])
         self.send_to_peer(json.dumps({'d2' : serialize_nd_array(d1)}))
         d2 = self.recieve_from_peer()['d2']
         d = np.logical_xor(d1, d2)
-        return self.call_back(d)
+        print(np.sum(d.astype(int)))
+        d_prime = [str(int(e)) for e in d[-len(W) : ]]
+        print(int(''.join(d_prime), 2))
+        return self.call_back(d[:-len(W)]), 0
     
     def set_distributed_inputs(self, obj):
         '''
@@ -496,18 +543,27 @@ class BNAuth(object):
         '''
         performs distillation , preprocessing and distribution of vectors
         '''
+        s = time()
         if len(self.octets) == 0:
             self.octets = self.preprocess() 
 
+        print(time()- s)
+        # s = time()
         # distribute and recieve X,Y as X1, Y1
         if self.X1 is None or self.Y1 is None:
             self.X1, _ = self.create_distributed_vectors(self.X)
             self.Y1 =  np.array(self.fetch_distributed_vector())
             if self.party_type == Party.P2: self.Y1, self.X1 = self.X1, self.Y1
 
+        s = time()
         # perform distillation
         while len(self.selected_octect_index) == 0:
             self.selected_octect_index += self.perform_distillation(self.X1, self.Y1)
+
+        self.perform_post_distillation()
+
+        print(time()- s)
+
         
         if self.R1 is None :
             # distribute R as R1 or R2
@@ -516,7 +572,8 @@ class BNAuth(object):
                 self.socket.recvmsg(1)[0]
             else: 
                 self.R1 = self.recieve_from_peer()['R2']
-                self.socket.sendall(struct.pack('?', True))       
+                self.socket.sendall(struct.pack('?', True)) 
+          
 
 
     def perform_secure_match_parallel_inputs(self, sums = [], size = 16, noise = False):
@@ -528,10 +585,34 @@ class BNAuth(object):
         for i in range(1, len(sums)):
             final_sum = self.add_2_numbers(sums[i], final_sum, size * 2, noise)
 
-        self.send_to_peer(json.dumps({'d2' : serialize_nd_array(final_sum)}))
+        # d2 = self.add_1(self.secure_not(final_sum), noise)
+        # final_sum = np.concatenate([final_sum, d2])
+        # self.send_to_peer(json.dumps({'d2' : serialize_nd_array(final_sum)}))
+        # d2 = self.recieve_from_peer()['d2']
+        # d = np.logical_xor(final_sum, d2)
+        # pl = np.array(self.plain_text_2s_complement(d[:len(d)//2])).astype(int)
+        # ct = d[len(d)//2:].astype(int)
+        # return self.call_back(d[:len(d)//2]), not(np.allclose(ct, pl))
+        # method 3
+        d1 = final_sum
+        n =  4 * int(np.log2(len(d1)))
+        W = [d1[0] ^ np.random.randint(0,2)] #initial sum
+        # hamming distance / error correction
+        for e in d1[1 : ]:
+            v = e ^ np.random.randint(0,2)
+            for i in range(len(W)-1, -1, -1):
+                f = v ^ W[i]
+                self.increase_oc_count(1)
+                v = self.perform_computation_phase_v3(self.selected_octets[self.oc_count], W[i], v, noise)
+                W[i] = f
+            if len(W) < n: W.insert(0 , v) 
+        d1 = np.concatenate([d1, W])
+        self.send_to_peer(json.dumps({'d2' : serialize_nd_array(d1)}))
         d2 = self.recieve_from_peer()['d2']
-        d = np.logical_xor(final_sum, d2)
-        return self.call_back(d)
+        d = np.logical_xor(d1, d2)
+        d_prime = [str(int(e)) for e in d[-len(W) : ]]
+        r = int(''.join(d_prime), 2)
+        return self.call_back(d[:-len(W)]), not(r >= 0 and r <= len(d))
 
     def save(self, ports = [], noise = False):
         with open(f'{self.party_type}.pk' , 'wb') as f: 

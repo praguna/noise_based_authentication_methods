@@ -9,7 +9,7 @@ from mp import *
 import os
 
 ### Dataset / Modality specific import
-import mp_party_1_soco as mp_det
+import mp_party_1_face as mp_det
 #####
 M = {'local' : [], 'protocol' : []}
 NM = {'local' : [], 'protocol' : []}
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     start = 'INFO:root:['
     call_back = bin_2_float_call_back(i_size * 2 , d_size * 2) # to get the float answer
     # for _ in tqdm.tqdm(range(10)): #base case
-    for a1, b1, c1, a, b in tqdm.tqdm(mp_det.soco_example_generator()):
+    for a1, b1, c1, a, b in tqdm.tqdm(mp_det.celeb_a_cfp_example_generator()):
      try:
         # F0 = mp_det.extract_feature([a1]).flatten()
         # F1 = mp_det.extract_feature([b1]).flatten()
@@ -92,7 +92,7 @@ if __name__ == "__main__":
         X = get_Random_X(32, True)
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        # client.settimeout(100)
+        # client.settimeout(10)
         client.connect(('0.0.0.0', int(argv[1]))) 
         # client.send(bytes(f'-', encoding="utf-8")) #send files here 
         client.send(bytes(f'{b1} {b}', encoding="utf-8")) #send files here 
@@ -181,5 +181,5 @@ if __name__ == "__main__":
      finally:  client.close()
 
 import json
-with open('soco1_scores.json', 'w+') as f:
+with open('cfp_scores_1.json', 'w+') as f:
     json.dump({'mated' : M , 'non-mated' : NM}, f)

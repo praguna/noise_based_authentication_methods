@@ -8,12 +8,12 @@ if __name__  == "__main__":
     L = ['Real', 'Altered']
     sd1 = os.listdir(P + '/Altered')
     files = os.listdir(P + '/Real')
-    files = ['Real/' + x for x in files if x.find('little_finger')!=-1]
+    files = ['Real/' + x for x in files if x.find('index_finger')!=-1]
     files = [e for e in  files if int(e.split('__')[0].split('/')[-1]) <= 100]
     for p in sd1: 
         try:
             e = os.listdir(P +  'Altered/' + p)
-            e = ['Altered/' + p + '/'  + x for x in e if x.find('little_finger')!=-1]
+            e = ['Altered/' + p + '/'  + x for x in e if x.find('index_finger')!=-1]
             e = [x for x in  e if int(x.split('__')[0].split('/')[-1]) <= 100]
             files.extend(e)
         except Exception as e:
@@ -23,7 +23,7 @@ if __name__  == "__main__":
     print(len(files))
     M = []
     NM = []
-    with open('soco_pairs.txt' , 'w+') as file:
+    with open('soco_pairs_ids.txt' , 'w+') as file:
         for e, f in itertools.combinations(files, 2):
             id1 = e.split('__')[0].split('/')[-1]
             id2 = f.split('__')[0].split('/')[-1]

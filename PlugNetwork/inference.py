@@ -22,9 +22,10 @@ parser.add_argument('--wandb', default=True, type=bool,
                 help='wandb')
 parser.add_argument('--expname', default=True, type=str,
                 help='experiment_8')
+parser.add_argument('args', nargs=argparse.REMAINDER)
 args = parser.parse_args()
 nvgNetFace = NvgnetFace(args=args).to(device).eval()
-file = f'/home2/praguna.manvi/plg_models/model_{args.lr}_{args.batch_size}_copy.pt'
+file = f'/home2/praguna.manvi/plg_models/model_{args.lr}_{args.batch_size}.pt'
 nvgNetFace.load_state_dict(torch.load(file))
 mtcnn = MTCNN()
 
@@ -50,3 +51,11 @@ def compute_embedding_with_distance(P1):
     # print(C @ R)
     # exit(0)
     return R, C @ R
+
+def compute_id(P1):
+    I = mtcnn(Image.open(P1)).to(device).unsqueeze(0)
+    C = ARCH0(I).detach().to('cpu').numpy().flatten()
+    # print(C.shape, R.shape)
+    # print(C @ R)
+    # exit(0)
+    return C 

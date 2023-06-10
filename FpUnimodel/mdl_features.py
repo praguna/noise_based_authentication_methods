@@ -42,12 +42,15 @@ def init_fp_session():
 
 if __name__ == "__main__":
     R = "../dumps/dataset"
-    P = [R + '/101_1.tif', R + '/101_4.tif' , R + '/102_3.tif' , R + '/102_4.tif'] 
+    # P = [R + '/101_1.tif', R + '/101_4.tif' , R + '/102_3.tif' , R + '/102_4.tif'] 
+    # P = [R + '/SOCOFing/Altered/Altered-Medium/1__M_Left_little_finger_CR.BMP']
+    P = ['../dumps/SOCOFing/Altered/Altered-Medium/1__M_Left_little_finger_CR.BMP']
     I = preprocess_test(P)
     extract_embeddings = init_fp_session()
     F_norm = extract_embeddings(I)
-    print(F_norm[0, :] @ F_norm[1 , :], "same class")
-    print(F_norm[0, :] @ F_norm[2 , :], "same class")
-    print(F_norm[0, :] @ F_norm[3 , :], "diff class")
-    print(F_norm[2, :] @ F_norm[3 , :], "same class")
+    print(F_norm.shape)
+    # print(F_norm[0, :] @ F_norm[1 , :], "same class")
+    # print(F_norm[0, :] @ F_norm[2 , :], "same class")
+    # print(F_norm[0, :] @ F_norm[3 , :], "diff class")
+    # print(F_norm[2, :] @ F_norm[3 , :], "same class")
 

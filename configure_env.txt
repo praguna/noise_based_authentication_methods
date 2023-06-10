@@ -9,3 +9,11 @@ mkdir dumps
 # move fp model
 mv /content/drive/MyDrive/Inception_mdl/mdl.pb  dumps/
 pip install facenet_pytorch --quiet
+
+wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$(wget --quiet --save-cookies /tmp/cookies.txt --keep-session-cookies --no-check-certificate 'https://docs.google.com/uc?export=download&id=1UOa12qdsjABxSSKF_Va0wQebfYxZb5-I' -O- | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')&id=1UOa12qdsjABxSSKF_Va0wQebfYxZb5-I" -O hawking01.wav && rm -rf /tmp/cookies.txt
+
+https://drive.google.com/file/d/1gx1FEo3qB5tFO7_wgn3ELdcPeRSH8bFp/view?usp=share_link
+
+https://drive.google.com/file/d/1UOa12qdsjABxSSKF_Va0wQebfYxZb5-I/view?usp=share_link
+
+https://drive.google.com/file/d/1Mn5E-uCvJjh9Xi5oGH5zG7DtVakC7we0/view?usp=share_link

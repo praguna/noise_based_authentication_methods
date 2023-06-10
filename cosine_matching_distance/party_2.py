@@ -40,6 +40,7 @@ def get_Random_X(n = 512):
 
 if __name__ == "__main__":
     serv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    serv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     serv.bind(('0.0.0.0', int(argv[1])))
     serv.listen()
     print(f'server started at {argv[1]}!!!')
@@ -60,7 +61,7 @@ if __name__ == "__main__":
           e = time()
           if not call_back: 
           #     with open('out.txt', 'w+') as f: f.writelines(str(d.astype(np.int8)) + ' ' + argv[1]) 
-              logging.info(f'{str(d.astype(np.int8))} | {argv[1]}') 
+              logging.info(f'{str(d.astype(np.int8))} | {argv[1]} | {bNAuth.count}') 
               continue
           ### second times
           X = get_Random_X(5)
@@ -70,3 +71,14 @@ if __name__ == "__main__":
           # print(d)
        except Exception as e: print('Error : ',e)
        finally: conn.close()
+
+
+     #    z, e = 2, -1
+     #    self.increase_oc_count(1)
+     #    c = self.perform_computation_phase_v3(self.selected_octets[self.oc_count], b2[e], b1[e], noise)
+     #    R = [b1[e] ^  b2[e]]
+     #    for i in range(len(b1)-z, -1, -1):
+
+
+          #        S, c = [A[-1]], A[-1]
+          #   for x in reversed(A[1:]): 

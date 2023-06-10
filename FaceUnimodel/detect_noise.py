@@ -125,11 +125,11 @@ def detect_mediapipe(path):
             extracted_img = extract_masked_regions(img, masked_img_hair) #hair
             x,y,w,h = cv2.boundingRect(mesh_points[LEFT_EYE])
             left_eye = img[y : y+h, x : x+w, :]
-            # cv2.imwrite('../dumps/example_mediapipe_lefteye.png', img[y : y+h, x : x+w, :])
+            cv2.imwrite('../dumps/example_mediapipe_lefteye.png', img[y : y+h, x : x+w, :])
             x,y,w,h = cv2.boundingRect(mesh_points[RIGHT_EYE])
             right_eye = img[y : y+h, x : x+w, :]
-            # cv2.imwrite('../dumps/example_mediapipe_righteye.png', img[y : y+h, x : x+w, :])
-            # cv2.imwrite('../dumps/example_mediapipe_hair.png', extracted_img)
+            cv2.imwrite('../dumps/example_mediapipe_righteye.png', img[y : y+h, x : x+w, :])
+            cv2.imwrite('../dumps/example_mediapipe_hair.png', extracted_img)
             cv2.fillPoly(masked_img_hair, [mesh_points[LEFT_EYE]], (255,255,255))
             cv2.fillPoly(masked_img_hair, [mesh_points[RIGHT_EYE]], (255,255,255))
             extracted_img_1 = extract_masked_regions(img, masked_img_hair) # eye and hair
@@ -150,7 +150,7 @@ def detect_mediapipe(path):
                 return E
             
 
-# if __name__ == "__main__":
-#     if path:
-#         # detect_haarcascade(path)
-#         detect_mediapipe(path)
+if __name__ == "__main__":
+    if path:
+        # detect_haarcascade(path)
+        detect_mediapipe(path)

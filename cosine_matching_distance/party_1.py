@@ -43,7 +43,7 @@ if __name__ == "__main__":
           client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
           client.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
           client.connect(('0.0.0.0', int(argv[1]))) 
-          # client.settimeout(100)
+          # client.settimeout(10)
           client.send(bytes('-', encoding="utf-8"))
 
           # N = np.array([np.random.randint(0, 2) for _ in range(200)])
@@ -60,7 +60,7 @@ if __name__ == "__main__":
           d1 = bNAuth.perform_secure_match(size=t_size, noise=noise)
           e = time()
           if not call_back:
-              logging.info(f'{d1.astype(np.int8)} | {int(argv[1])} | {e-s}') # return to console 
+              logging.info(f'{d1.astype(np.int8)} | {int(argv[1])} | {e-s} | {bNAuth.count}') # return to console 
               client.close() # comment this for 1 process computation
               continue
           if call_back:

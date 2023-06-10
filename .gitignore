@@ -11,3 +11,6 @@ dumps
 *.pk
 *.out
 *.sh
+**/*.json
+**/*.png
+*_scores*.json
