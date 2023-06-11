@@ -231,7 +231,10 @@ class BNAuth(object):
         a1, b1, c1 = octect[2] ^ octect[3] , octect[1] ^ octect[3] , octect[3] if not noise else  octect[0] ^ octect[1] ^ octect[2]
         x1_xor_a1, y1_xor_b1 = a1^w , b1^v
         self.socket.sendall(struct.pack('??',x1_xor_a1, y1_xor_b1))
-        s = self.socket.recvmsg(2)[0]
+        # s = self.socket.recvmsg(2)[0]
+        s = b''
+        while len(s) < 2:
+            s += self.socket.recvmsg(2)[0]
         x2_xor_a2, y2_xor_b2  = struct.unpack('??',s)
         self.count+=2
         XA = x1_xor_a1 ^ x2_xor_a2

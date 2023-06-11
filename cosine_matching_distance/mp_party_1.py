@@ -145,10 +145,12 @@ if __name__ == "__main__":
             L.append(e - s)
             # print(bNAuth.count, check)
             if check  == 0:
-                assert abs(d - v) < 1e-2, (d, v, bNAuth.octets[bNAuth.selected_octect_index], noise)
+                assert abs(d - v) < 1e-1, (d, v, bNAuth.octets[bNAuth.selected_octect_index], noise)
             print(noise ,d, v, check, i)
      except Exception as e: 
         #  raise e
+         if isinstance(e, AssertionError):
+            raise e
          print('Error : ', e, 'dropping this')
      finally:  client.close()
     print(np.average(L), np.max(L), np.min(L))

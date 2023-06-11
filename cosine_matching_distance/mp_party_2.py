@@ -113,6 +113,7 @@ if __name__ == "__main__":
             # bNAuth.selected_octect_index = [0]
             d, check = bNAuth.perform_secure_match_parallel_inputs(PX, t_size, noise)
             # print(bNAuth.count)
+            print(noise)
         #  print(d)
          
         
